@@ -11,22 +11,40 @@
   <script src="js/firebase-config.js"></script>
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <h1>👑 Raja Mantri Chor Sipahi</h1>
-    </header>
-    <main class="game-area">
-      <div class="room-controls">
-        <input id="playerName" placeholder="Enter your name" class="input-field" />
-        <button id="createRoom" class="btn btn-primary">Create Room</button>
-        <span>or</span>
-        <input id="joinCode" placeholder="Room code" class="input-field" />
-        <button id="joinRoom" class="btn btn-success">Join Room</button>
+  <div class="centered-bg">
+    <div class="logo-block">
+      <img src="assets/rmcs-logo.png" class="main-logo" alt="Game Logo"/> <!-- Use a sharp SVG or PNG icon! -->
+      <h1>Raja Mantri Chor Sipahi</h1>
+    </div>
+    <div id="screens">
+      <!-- Main Menu -->
+      <div id="mainMenu" class="menu-screen active-screen">
+        <button class="giant-btn create-btn">Create Room</button>
+        <button class="giant-btn join-btn">Join Room</button>
       </div>
-      <div id="gameContent" class="game-content">
-        <!-- Game UI will be injected here -->
+      <!-- Create Room Screen -->
+      <div id="createScreen" class="menu-screen">
+        <h2>Create New Room</h2>
+        <input type="text" id="createPlayerName" class="input-field fancy" placeholder="Enter your name" />
+        <input type="text" id="createRoomCode" maxlength="8" class="input-field fancy" placeholder="Room code (leave blank for random)" />
+        <button id="createRoomFinal" class="confirm-btn">Create</button>
+        <button class="back-btn">Back</button>
+        <div id="createRoomError" class="error-msg"></div>
       </div>
-    </main>
+      <!-- Join Room Screen -->
+      <div id="joinScreen" class="menu-screen">
+        <h2>Join Room</h2>
+        <input type="text" id="joinPlayerName" class="input-field fancy" placeholder="Enter your name" />
+        <input type="text" id="joinRoomCode" maxlength="8" class="input-field fancy" placeholder="Enter room code" />
+        <button id="joinRoomFinal" class="confirm-btn">Join</button>
+        <button class="back-btn">Back</button>
+        <div id="joinRoomError" class="error-msg"></div>
+      </div>
+      <!-- Game Screen -->
+      <div id="gameScreen" class="menu-screen">
+        <div id="gameContent"></div>
+      </div>
+    </div>
   </div>
   <script src="js/rmcs.js"></script>
 </body>
