@@ -1,56 +1,105 @@
 document.addEventListener("DOMContentLoaded", function() {
+  // Navigation references
+  const mainMenu = document.getElementById('mainMenu');
+  const createScreen = document.getElementById('createScreen');
+  const joinScreen = document.getElementById('joinScreen');
+  const gameScreen = document.getElementById('gameScreen');
+
+  // Navigation logic
+  function showScreen(show) {
+    [mainMenu, createScreen, joinScreen, gameScreen].forEach(screen => screen.classList.remove('active-screen'));
+    show.classList.add('active-screen');
+  }
+
+  document.querySelector('.create-btn').onclick = () => showScreen(createScreen);
+  document.querySelector('.join-btn').onclick = () => showScreen(joinScreen);
+  [...document.querySelectorAll('.back-btn')].forEach(btn => btn.onclick = () => showScreen(mainMenu));
+
+  // Main logic variables
   let roomId = '';
   let playerName = '';
-  let role = '';
-  let revealedPlayers = [];
 
-  // Create room handler
-  document.getElementById('createRoom').onclick = () => {
-    playerName = document.getElementById('playerName').value.trim();
-    if (!playerName) return alert('Please enter your name');
+  // --- Room Creation (with code uniqueness check) ---
+  document.getElementById('createRoomFinal').onclick = async () => {
+    playerName = document.getElementById('createPlayerName').value.trim();
+    let customRoomCode = document.getElementById('createRoomCode').value.trim().toUpperCase();
+    document.getElementById('createRoomError').innerText = '';
+
+    if (!playerName) {
+      document.getElementById('createRoomError').innerText = "Enter your name.";
+      return;
+    }
+    if (customRoomCode && (customRoomCode.length < 4 || !/^[A-Z0-9]{4,8}$/.test(customRoomCode))) {
+      document.getElementById('createRoomError').innerText = "Room code: 4-8 letters/numbers.";
+      return;
+    }
+
+    if (!customRoomCode) {
+      // Generate a random 6-letter code
+      customRoomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
+    // Check for code uniqueness
+    const ref = db.collection('rmcs_rooms').doc(customRoomCode);
+    const docSnapshot = await ref.get();
+    if (docSnapshot.exists) {
+      document.getElementById('createRoomError').innerText = "Room code already exists. Try a new code!";
+      return;
+    }
+
+    // Auth/initiate, create room
     firebase.auth().onAuthStateChanged(async user => {
-      if (!user) return alert('Wait till you are authenticated');
+      if (!user) { document.getElementById('createRoomError').innerText = "Authentication error."; return; }
       try {
-        const doc = await db.collection('rmcs_rooms').add({
+        await ref.set({
           host: playerName,
           players: [{ name: playerName, id: user.uid }],
           state: 'waiting',
           created: Date.now()
         });
-        roomId = doc.id;
-        showRoom(roomId);
+        roomId = customRoomCode;
+        showGame(roomId);
       } catch (error) {
-        alert('Room creation error: ' + error.message);
+        document.getElementById('createRoomError').innerText = 'Room creation error: ' + error.message;
       }
     });
   };
 
-  // Join room handler
-  document.getElementById('joinRoom').onclick = () => {
-    playerName = document.getElementById('playerName').value.trim();
-    const code = document.getElementById('joinCode').value.trim();
-    if (!playerName || !code) return alert('Please enter both a name and room code');
+  // --- Join Room ---
+  document.getElementById('joinRoomFinal').onclick = async () => {
+    playerName = document.getElementById('joinPlayerName').value.trim();
+    const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
+    document.getElementById('joinRoomError').innerText = '';
+    if (!playerName || !code) {
+      document.getElementById('joinRoomError').innerText = "Enter both a name and room code.";
+      return;
+    }
+    const ref = db.collection('rmcs_rooms').doc(code);
+    const doc = await ref.get();
+    if (!doc.exists) {
+      document.getElementById('joinRoomError').innerText = "Room not found!";
+      return;
+    }
     firebase.auth().onAuthStateChanged(async user => {
-      if (!user) return alert('Wait till you are authenticated');
-      const docRef = db.collection('rmcs_rooms').doc(code);
-      const doc = await docRef.get();
-      if (!doc.exists) return alert('Room not found');
+      if (!user) return document.getElementById('joinRoomError').innerText = "Authentication error.";
       if (!doc.data().players.some(p => p.id === user.uid)) {
-        await docRef.update({
+        await ref.update({
           players: firebase.firestore.FieldValue.arrayUnion({ name: playerName, id: user.uid })
         });
       }
       roomId = code;
-      showRoom(roomId);
+      showGame(roomId);
     });
   };
 
-  // Display room and players, allow game start if enough
-  function showRoom(roomCode) {
+  // --- Game page logic, all async functions unchanged from robust previous version ---
+
+  function showGame(roomCode) {
+    showScreen(gameScreen);
     const contentDiv = document.getElementById('gameContent');
     if (!contentDiv) return;
     contentDiv.innerHTML = `
-      <h2>Room Code: ${roomCode}</h2>
+      <h2>Room Code: <span style="font-size:1.3em;letter-spacing:2px">${roomCode}</span></h2>
       <div id="playersList"></div>
       <button id="startGame" class="btn btn-primary">Start Game</button>
     `;
@@ -61,7 +110,7 @@ document.addEventListener("DOMContentLoaded", function() {
       .onSnapshot(doc => {
         const data = doc.data();
         if (!data) return;
-        let html = '<h3>Players in Room:</h3>';
+        let html = '<h3>Players in this Room:</h3>';
         data.players.forEach(p => {
           html += `<div class="player-card">${p.name}</div>`;
         });
@@ -88,7 +137,6 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
-  // Actual role assignment and gameplay
   async function playRound(data) {
     const players = data.players;
     const roles = ['Raja', 'Mantri', 'Chor', 'Sipahi'];
@@ -98,11 +146,7 @@ document.addEventListener("DOMContentLoaded", function() {
         '<div class="status-message">Exactly 4 players required for Raja Mantri Chor Sipahi!</div>';
       return;
     }
-
-    // Assign roles without duplicates
-    let roleDeck = [...roles];
-    roleDeck = roleDeck.sort(() => Math.random() - 0.5);
-
+    let roleDeck = [...roles].sort(() => Math.random() - 0.5);
     let playerRole = '';
     players.forEach((player, idx) => {
       if (player.id === firebase.auth().currentUser.uid) playerRole = roleDeck[idx];
@@ -111,13 +155,10 @@ document.addEventListener("DOMContentLoaded", function() {
     const contentDiv = document.getElementById('gameContent');
     if (!contentDiv) return;
 
-    // Only Raja and Sipahi can reveal
     if (playerRole === 'Raja' || playerRole === 'Sipahi') {
       contentDiv.innerHTML = `
-        <div class="role-card">
-          <h2>Your Role: ${playerRole}</h2>
-          <button id="revealBtn" class="btn btn-primary">Reveal Role</button>
-        </div>
+        <div class="role-card big"><h2>Your Role: ${playerRole}</h2>
+        <button id="revealBtn" class="btn btn-primary">Reveal Role</button></div>
         <div id="gameStatus"></div>
       `;
       document.getElementById('revealBtn').onclick = async () => {
@@ -132,15 +173,12 @@ document.addEventListener("DOMContentLoaded", function() {
       };
     } else {
       contentDiv.innerHTML = `
-        <div class="role-card">
-          <h2>Your Role: ${playerRole}</h2>
-          <p>Wait for Raja and Sipahi to reveal their roles.</p>
-        </div>
+        <div class="role-card big"><h2>Your Role: ${playerRole}</h2>
+        <p>Wait for Raja and Sipahi to reveal their roles.</p></div>
         <div id="gameStatus"></div>
       `;
     }
 
-    // Listen for revealed roles and update all screens
     db.collection('rmcs_rooms').doc(roomId).onSnapshot(doc => {
       const snapshotData = doc.data();
       if (!snapshotData) return;
@@ -148,13 +186,12 @@ document.addEventListener("DOMContentLoaded", function() {
       if (revealed.length >= 2) {
         const revealedText = revealed.map(r => `${r.role}`).join(', ');
         const statusDiv = document.getElementById('gameStatus');
-        if (statusDiv) statusDiv.innerText = `Revealed roles: ${revealedText}. Sipahi, guess the thief!`;
+        if (statusDiv) statusDiv.innerText = `Revealed: ${revealedText}. Sipahi, guess the thief!`;
         guessUI(contentDiv, snapshotData);
       }
     });
   }
 
-  // Guess UI and logic for Sipahi
   function guessUI(container, GameData) {
     if (!container) return;
     container.innerHTML += `
