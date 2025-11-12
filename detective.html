@@ -1,21 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Detective Killer</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detective Killer</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/detective.js"></script>
 </head>
 <body>
-    <div class="container game-room">
-        <div class="room-header">
-            <h1>🔍 Detective Killer</h1>
-            <input id="playerName" placeholder="Enter your name" class="input-group" />
-            <button id="createRoom" class="btn btn-primary">Create Room</button>
-            <span style="margin: 10px;">or</span>
-            <input id="joinCode" placeholder="Room code" class="input-group" />
-            <button id="joinRoom" class="btn btn-success">Join Room</button>
-        </div>
-        <div id="gameArea" class="game-area"></div>
-    </div>
+  <div class="container">
+    <header class="header">
+      <h1>🔍 Detective Killer</h1>
+    </header>
+    <main class="game-area">
+      <div class="room-controls">
+        <input id="playerName" placeholder="Enter your name" class="input-field" />
+        <button id="createRoom" class="btn btn-primary">Create Room</button>
+        <span>or</span>
+        <input id="joinCode" placeholder="Room code" class="input-field" />
+        <button id="joinRoom" class="btn btn-success">Join Room</button>
+      </div>
+      <div id="gameContent" class="game-content">
+        <!-- Game UI will be injected here -->
+      </div>
+    </main>
+  </div>
 </body>
 </html>
