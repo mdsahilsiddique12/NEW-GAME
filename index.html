@@ -1,31 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplayer Games Hub</title>
-    <link rel="stylesheet" href="css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiplayer Games Hub</title>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <div class="menu-container">
-            <h1 class="main-title">🎮 Multiplayer Games Hub</h1>
-            <p class="subtitle">Choose your game and play with friends!</p>
-            <div class="game-cards">
-                <div class="game-card rmcs-card">
-                    <div class="card-icon">👑</div>
-                    <h2>Raja Mantri Chor Sipahi</h2>
-                    <p>Classic Indian game of roles and deduction</p>
-                    <button class="btn btn-primary" onclick="location.href='rmcs.html'">Play Now</button>
-                </div>
-                <div class="game-card detective-card">
-                    <div class="card-icon">🔍</div>
-                    <h2>Detective Killer</h2>
-                    <p>Mystery game of survival and investigation</p>
-                    <button class="btn btn-primary" onclick="location.href='detective.html'">Play Now</button>
-                </div>
-            </div>
-        </div>
-    </div>
+  <div class="container">
+    <header class="header">
+      <h1 class="main-title">🎮 Multiplayer Games Hub</h1>
+      <p class="subtitle">Play with friends, no login required!</p>
+    </header>
+    <main class="game-grid">
+      <div class="game-card" onclick="location.href='rmcs.html'">
+        <div class="card-icon">👑</div>
+        <h2>Raja Mantri Chor Sipahi</h2>
+        <p>Classic Indian game of roles and deduction</p>
+      </div>
+      <div class="game-card" onclick="location.href='detective.html'">
+        <div class="card-icon">🔍</div>
+        <h2>Detective Killer</h2>
+        <p>Mystery game of survival and investigation</p>
+      </div>
+    </main>
+  </div>
 </body>
 </html>
