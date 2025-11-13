@@ -124,53 +124,58 @@ document.addEventListener("DOMContentLoaded", function() {
   };
 
   // --- Listen and Draw Lobby/Game Screen ---
-  function listenToRoom(roomCode) {
-    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-    unsubscribe = db.collection('rmcs_rooms').doc(roomCode)
-      .onSnapshot(doc => {
-        const data = doc.data();
-        if (!data) return;
-        const players = data.players || [];
-        const selfId = firebase.auth().currentUser?.uid;
-        if (data.phase === "completed") return; // All rounds done
+function listenToRoom(roomCode) {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  unsubscribe = db.collection('rmcs_rooms').doc(roomCode)
+    .onSnapshot(doc => {
+      const data = doc.data();
+      if (!data) return;
+      const players = data.players || [];
+      const selfId = firebase.auth().currentUser?.uid;
+      if (data.phase === "completed") return; // All rounds done
 
-        renderRoomCode(roomCode);
+      renderRoomCode(roomCode);
+
+      // Always show player list in lobby
+      if (data.phase === "lobby") {
         renderPlayersList(players);
-        if (data.phase === "lobby") renderAvatarsTable(players, selfId);
+        renderAvatarsTable(players, selfId);
+      } else {
+        // Clear avatars in other phases
+        if (gameTable) gameTable.innerHTML = '';
+      }
 
-        // Check if current user is host
-        let isHost = players.length > 0 && selfId === players[0].id;
-        if (startGameBtn) {
-          startGameBtn.disabled = !(isHost && players.length === 4 && data.phase === 'lobby');
-          // Bind the click handler every time
-          startGameBtn.onclick = async () => {
-            if (!(isHost && players.length === 4 && data.phase === 'lobby')) return;
-            const roomRef = db.collection('rmcs_rooms').doc(roomId);
-            const roles = assignRoles(players);
-            await roomRef.update({
-              phase: 'reveal',
-              playerRoles: roles,
-              revealed: []
-            });
-          };
-        }
+      // Check if current user is host
+      let isHost = players.length > 0 && selfId === players[0].id;
+      if (startGameBtn) {
+        startGameBtn.disabled = !(isHost && players.length === 4 && data.phase === 'lobby');
+        // Bind the click handler every time
+        startGameBtn.onclick = async () => {
+          if (!(isHost && players.length === 4 && data.phase === 'lobby')) return;
+          const roomRef = db.collection('rmcs_rooms').doc(roomId);
+          const roles = assignRoles(players);
+          await roomRef.update({
+            phase: 'reveal',
+            playerRoles: roles,
+            revealed: []
+          });
+        };
+      }
 
-        if (data.phase === 'lobby') {
-          document.getElementById('gameContent')?.classList?.remove('hidden');
-        } else if (data.phase === 'reveal') {
-          if(gameTable) gameTable.innerHTML = '';
-          document.getElementById('gameContent')?.classList?.add('hidden');
-          showRoleRevealScreen(players, selfId, data.playerRoles, data.revealed || []);
-        } else if (data.phase === 'guess') {
-          if(gameTable) gameTable.innerHTML = '';
-          document.getElementById('gameContent')?.classList?.add('hidden');
-          showSipahiGuessUI(data.playerRoles, selfId, roomCode);
-        } else if (data.phase === "roundResult") {
-          if(gameTable) gameTable.innerHTML = '';
-          showRoundResult(data, selfId, roomCode);
-        }
-      });
-  }
+      if (data.phase === 'lobby') {
+        document.getElementById('gameContent')?.classList?.remove('hidden');
+      } else if (data.phase === 'reveal') {
+        document.getElementById('gameContent')?.classList?.add('hidden');
+        showRoleRevealScreen(players, selfId, data.playerRoles, data.revealed || []);
+      } else if (data.phase === 'guess') {
+        document.getElementById('gameContent')?.classList?.add('hidden');
+        showSipahiGuessUI(data.playerRoles, selfId, roomCode);
+      } else if (data.phase === "roundResult") {
+        showRoundResult(data, selfId, roomCode);
+      }
+    });
+}
+
 
   // --- Role Reveal Flow ---
   function showRoleRevealScreen(players, selfId, playerRoles, revealed) {
