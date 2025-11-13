@@ -100,8 +100,8 @@ document.addEventListener("DOMContentLoaded", function() {
   // --- Game page logic ---
   function showGame(roomCode) {
     showScreen(gameScreen);
-    currentRoomCode.innerHTML = roomCode;
-    startGameBtn.disabled = true;
+    if (currentRoomCode) currentRoomCode.innerHTML = roomCode;
+    if (startGameBtn) startGameBtn.disabled = true;
 
     // Listen for changes and update UI
     db.collection('rmcs_rooms').doc(roomCode)
@@ -110,49 +110,55 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!data) return;
 
         // Update player list
-        playersList.innerHTML = data.players.map(p => `<li>${p.name}</li>`).join('');
+        if (playersList) playersList.innerHTML = data.players.map(p => `<li>${p.name}</li>`).join('');
 
         // Update avatar table
-        gameTable.innerHTML = '';
-        const angleStep = 360 / data.players.length;
-        data.players.forEach((p, i) => {
-          const angle = i * angleStep;
-          const x = 150 + 120 * Math.cos(angle * Math.PI / 180);
-          const y = 150 + 120 * Math.sin(angle * Math.PI / 180);
-          const avatar = document.createElement('div');
-          avatar.className = 'avatar';
-          avatar.style.left = `${x - 30}px`;
-          avatar.style.top = `${y - 30}px`;
-          avatar.innerHTML = '👤';
-          const name = document.createElement('div');
-          name.className = 'avatar-name';
-          name.innerText = p.name;
-          avatar.appendChild(name);
-          gameTable.appendChild(avatar);
-        });
+        if (gameTable) {
+          gameTable.innerHTML = '';
+          const angleStep = 360 / data.players.length;
+          data.players.forEach((p, i) => {
+            const angle = i * angleStep;
+            const x = 150 + 120 * Math.cos(angle * Math.PI / 180);
+            const y = 150 + 120 * Math.sin(angle * Math.PI / 180);
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.style.left = `${x - 30}px`;
+            avatar.style.top = `${y - 30}px`;
+            avatar.innerHTML = '👤';
+            const name = document.createElement('div');
+            name.className = 'avatar-name';
+            name.innerText = p.name;
+            avatar.appendChild(name);
+            gameTable.appendChild(avatar);
+          });
+        }
 
         // Update start button state
-        startGameBtn.disabled = data.players.length !== 4;
+        if (startGameBtn) startGameBtn.disabled = data.players.length !== 4;
       });
   }
 
   // Start the game, check enough players
-  startGameBtn.onclick = async () => {
-    const doc = await db.collection('rmcs_rooms').doc(roomId).get();
-    const data = doc.data();
-    if (!data || !data.players || data.players.length !== 4) {
-      alert('Exactly 4 players required to start!');
-      return;
-    }
-    await db.collection('rmcs_rooms').doc(roomId).update({
-      state: 'playing',
-      round: 1,
-      maxRounds: 5
-    });
-  };
+  if (startGameBtn) {
+    startGameBtn.onclick = async () => {
+      const doc = await db.collection('rmcs_rooms').doc(roomId).get();
+      const data = doc.data();
+      if (!data || !data.players || data.players.length !== 4) {
+        alert('Exactly 4 players required to start!');
+        return;
+      }
+      await db.collection('rmcs_rooms').doc(roomId).update({
+        state: 'playing',
+        round: 1,
+        maxRounds: 5
+      });
+    };
+  }
 
   // Exit lobby
-  exitLobbyBtn.onclick = () => {
-    showScreen(mainMenu);
-  };
+  if (exitLobbyBtn) {
+    exitLobbyBtn.onclick = () => {
+      showScreen(mainMenu);
+    };
+  }
 });
