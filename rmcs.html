@@ -33,27 +33,48 @@
       animation: fadeIn 0.5s ease-out;
     }
     .active-screen { display: flex; flex-direction: column; gap: 1rem; }
-    .giant-btn {
-      @apply w-full py-4 text-xl font-bold rounded-xl shadow-lg transition-all duration-300 transform;
+    
+    /* Animation and Overlay Effects */
+    .giant-btn, .confirm-btn, .back-btn {
+      @apply w-full py-4 text-xl font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 hover:shadow-2xl;
     }
-    .create-btn { @apply bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95; }
-    .join-btn { @apply bg-green-500 text-white hover:bg-green-600 active:scale-95; }
-    .confirm-btn { @apply bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 active:scale-95; }
-    .back-btn { @apply bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 active:scale-95; }
+    .create-btn { @apply bg-indigo-600 text-white hover:bg-indigo-700; }
+    .join-btn { @apply bg-green-500 text-white hover:bg-green-600; }
+    .confirm-btn { @apply bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700; }
+    .back-btn { @apply bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300; }
     .input-field {
-      @apply w-full p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 transition-colors duration-200;
+      @apply w-full p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 transition-colors duration-200 shadow-sm hover:shadow-md focus:ring-4 focus:ring-indigo-200;
     }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* New style for the room code display and copy button */
+    .room-code-display {
+      @apply bg-indigo-50 border border-indigo-200 text-indigo-800 p-3 rounded-lg flex items-center justify-between font-mono text-xl select-none;
+    }
+    .copy-btn {
+        @apply ml-3 p-2 bg-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-300 transition-colors duration-200;
+    }
+
+    /* Custom Message/Alert Box */
+    #messageBox {
+        @apply fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center hidden;
+    }
+    #messageBoxContent {
+        @apply bg-white p-8 rounded-xl shadow-2xl max-w-sm text-center transform scale-100 transition-transform duration-300;
     }
   </style>
 
   <!-- Firebase Setup Imports (using v9/10/11 modular approach) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+        getFirestore, doc, setDoc, getDoc, collection, 
+        onSnapshot, updateDoc, arrayUnion, arrayRemove, deleteDoc 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // Global variables (must be present even if empty strings/default values)
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -61,63 +82,79 @@
     try { firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}'); } catch (e) { firebaseConfig = {}; }
     const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-    let app, auth, db, userId;
+    let app, auth, db;
+    let authReadyPromise;
+
+    // Expose Firebase utilities globally for the main script
+    window.doc = doc;
+    window.setDoc = setDoc;
+    window.getDoc = getDoc;
+    window.collection = collection;
+    window.onSnapshot = onSnapshot;
+    window.updateDoc = updateDoc;
+    window.arrayUnion = arrayUnion;
+    window.arrayRemove = arrayRemove;
+    window.deleteDoc = deleteDoc;
+
 
     if (Object.keys(firebaseConfig).length > 0) {
       try {
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         auth = getAuth(app);
+        window.db = db;
+        window.auth = auth;
 
-        onAuthStateChanged(auth, async (user) => {
-          if (user) {
-            userId = user.uid;
-            console.log("Firebase Auth State Changed. User ID:", userId);
-          } else {
-            console.log("No user signed in. Attempting anonymous sign-in.");
-            // Only sign in if no initial token is provided (as the system will handle that)
-            if (!initialAuthToken) {
-                await signInAnonymously(auth);
-            }
-          }
-          // Now that auth state is known, you can proceed with game logic/Firestore ops
+        // Set up authentication persistence
+        setPersistence(auth, browserSessionPersistence);
+        
+        authReadyPromise = new Promise((resolve) => {
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) {
+                    console.log("No user signed in. Attempting sign-in.");
+                    if (initialAuthToken) {
+                        try {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                            console.log("Signed in with custom token.");
+                        } catch (error) {
+                            console.error("Custom token sign-in failed:", error.message);
+                            await signInAnonymously(auth);
+                            console.log("Signed in anonymously (fallback).");
+                        }
+                    } else {
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously.");
+                    }
+                }
+                // Auth is ready once the initial check and potential sign-in is done
+                resolve(true); 
+            });
         });
-
-        if (initialAuthToken) {
-          console.log("Attempting sign-in with custom token.");
-          signInWithCustomToken(auth, initialAuthToken).catch(error => {
-            console.error("Error signing in with custom token:", error.message);
-            signInAnonymously(auth).catch(e => console.error("Anonymous sign-in failed:", e));
-          });
-        } else {
-            // Sign in anonymously if no initial token is provided (standard fallback)
-            // The onAuthStateChanged listener above handles this if initialAuthToken is null/undefined
-        }
 
       } catch (error) {
         console.error("Firebase initialization failed:", error);
       }
     } else {
         console.log("Firebase Config not provided. Running in non-persistent mode.");
+        // Resolve promise immediately if no Firebase config exists
+        authReadyPromise = Promise.resolve(true);
     }
+
+    window.authReadyPromise = authReadyPromise; // Expose the promise
+    window.appId = appId; // Expose appId
   </script>
 </head>
 <body>
   <div class="centered-bg">
     <!-- LOGO BLOCK WITH INLINE SVG -->
     <div class="logo-block">
-      <!-- 
-        The inline SVG is the logo. The class 'main-logo' defines its size:
-        w-24 h-24 (96px x 96px) on mobile, w-32 h-32 (128px x 128px) on larger screens.
-        This directly addresses your request for proper height and width via responsive classes.
-      -->
       <svg class="main-logo w-24 h-24 sm:w-32 sm:h-32 text-indigo-700 mx-auto" 
            viewBox="0 0 100 100" 
            fill="none" 
            xmlns="http://www.w3.org/2000/svg" 
            alt="Raja Mantri Chor Sipahi Logo">
         
-        <!-- Background/Container Shape (Optional, for visual depth) -->
+        <!-- Background/Container Shape -->
         <rect x="0" y="0" width="100" height="100" rx="20" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="2"/>
         
         <!-- Raja (King - Crown) - Gold -->
@@ -151,7 +188,7 @@
       <div id="createScreen" class="menu-screen">
         <h2 class="text-2xl font-bold mb-4 text-gray-800">Create New Room</h2>
         <input type="text" id="createPlayerName" class="input-field fancy" placeholder="Enter your name" />
-        <input type="text" id="createRoomCode" maxlength="8" class="input-field fancy" placeholder="Room code (leave blank for random)" />
+        <input type="text" id="createRoomCode" maxlength="8" class="input-field fancy" placeholder="Room code (optional, 8 chars)" />
         <button id="createRoomFinal" class="confirm-btn">Create</button>
         <button class="back-btn" data-target="mainMenu">Back</button>
         <div id="createRoomError" class="error-msg text-red-500 mt-2 text-sm"></div>
@@ -160,23 +197,69 @@
       <div id="joinScreen" class="menu-screen">
         <h2 class="text-2xl font-bold mb-4 text-gray-800">Join Room</h2>
         <input type="text" id="joinPlayerName" class="input-field fancy" placeholder="Enter your name" />
-        <input type="text" id="joinRoomCode" maxlength="8" class="input-field fancy" placeholder="Enter room code" />
+        <input type="text" id="joinRoomCode" maxlength="8" class="input-field fancy uppercase" placeholder="Enter room code" />
         <button id="joinRoomFinal" class="confirm-btn">Join</button>
         <button class="back-btn" data-target="mainMenu">Back</button>
         <div id="joinRoomError" class="error-msg text-red-500 mt-2 text-sm"></div>
       </div>
-      <!-- Game Screen (placeholder) -->
+      
+      <!-- Game Screen (Lobby) -->
       <div id="gameScreen" class="menu-screen">
-        <h2 class="text-2xl font-bold mb-4 text-gray-800">Game Lobby</h2>
-        <p>Waiting for players...</p>
-        <div id="gameContent" class="mt-4 p-4 bg-gray-100 rounded-lg"></div>
-        <button class="back-btn mt-4" data-target="mainMenu">Exit Game</button>
+        <h2 class="text-3xl font-bold mb-4 text-gray-800">Room Lobby</h2>
+        <!-- Room Code Display Area -->
+        <div id="roomCodeContainer" class="mb-4">
+          <p class="text-gray-600 mb-2 font-semibold">Share this Room Code:</p>
+          <div id="currentRoomCode" class="room-code-display">
+            <!-- Code and Copy Button will be populated by JS -->
+          </div>
+        </div>
+
+        <!-- NEW LLM FEATURE SECTION -->
+        <div id="scenarioSection" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <h3 class="text-lg font-bold mb-2 text-yellow-800 flex items-center">
+                ✨ Game Scenario Creator
+            </h3>
+            <div id="scenarioOutput" class="text-gray-700 text-sm italic mb-3 min-h-[3rem]">
+                No scenario generated yet. Click the button to set the stage!
+            </div>
+            <button id="generateScenarioBtn" class="w-full py-2 text-md font-semibold rounded-lg bg-yellow-400 text-yellow-900 transition-all duration-300 hover:bg-yellow-500 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed">
+                ✨ Generate Dramatic Scenario
+            </button>
+        </div>
+        <!-- END NEW LLM FEATURE SECTION -->
+
+        <h3 class="text-xl font-semibold mb-3 text-gray-700">Players in Room:</h3>
+        <ul id="playersList" class="space-y-2 mb-6 p-3 bg-gray-50 rounded-lg border">
+          <!-- Players will be listed here from Firestore -->
+          <li class="text-gray-500 text-center">Loading players...</li>
+        </ul>
+        
+        <button id="startGameBtn" class="confirm-btn">Start Game</button>
+        <button id="exitLobbyBtn" class="back-btn mt-4">Exit Lobby</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Custom Message Box/Overlay -->
+  <div id="messageBox">
+    <div id="messageBoxContent">
+        <h3 id="messageBoxTitle" class="text-2xl font-bold mb-3">Message</h3>
+        <p id="messageBoxBody" class="text-gray-700 mb-6"></p>
+        <button id="messageBoxClose" class="confirm-btn bg-indigo-600 hover:bg-indigo-700 !py-2 !px-6 !text-base">OK</button>
     </div>
   </div>
   
   <script>
-    // --- Screen Navigation Logic ---
+    // --- Gemini API Configuration ---
+    const API_KEY = ""; // Provided by the environment
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+    
+    // Global variable to store the Firestore unsubscribe function for cleanup
+    let roomUnsubscribe = null; 
+    let currentRoomCode = null; // Store current room code
+    let currentPlayers = []; // Store current players list
+
+    // --- Utility Functions ---
     const screens = {
       mainMenu: document.getElementById('mainMenu'),
       createScreen: document.getElementById('createScreen'),
@@ -195,38 +278,358 @@
       }
     }
 
-    // Button event listeners
+    function generateRoomCode() {
+        // Generates a random 8-character string
+        return Math.random().toString(36).substring(2, 10).toUpperCase();
+    }
+
+    function getUserId() {
+        return window.auth?.currentUser?.uid || 'anonymous-' + crypto.randomUUID();
+    }
+
+    // Custom alert function (replaces window.alert)
+    function showMessage(title, message) {
+        document.getElementById('messageBoxTitle').textContent = title;
+        document.getElementById('messageBoxBody').innerHTML = message;
+        document.getElementById('messageBox').classList.remove('hidden');
+    }
+    
+    // Function to handle copying the room code
+    function copyRoomCode(code) {
+        const tempInput = document.createElement('input');
+        tempInput.value = code;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        try {
+            document.execCommand('copy');
+            showMessage('Copied!', `The room code <span class="font-bold text-indigo-700">${code}</span> has been copied to your clipboard.`);
+        } catch (err) {
+            console.error('Could not copy text: ', err);
+            showMessage('Error', 'Failed to copy the room code. Please copy it manually: ' + code);
+        }
+        document.body.removeChild(tempInput);
+    }
+    
+    // Function to handle room exit/cleanup
+    async function exitRoom(roomCode, playerId) {
+        if (roomUnsubscribe) {
+            roomUnsubscribe();
+            roomUnsubscribe = null;
+        }
+
+        if (window.db && playerId && roomCode) {
+            const roomRef = window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'rmcs_rooms', roomCode);
+            try {
+                const roomDoc = await window.getDoc(roomRef);
+                if (roomDoc.exists()) {
+                    const roomData = roomDoc.data();
+                    const playerToRemove = roomData.players.find(p => p.id === playerId);
+                    
+                    if (playerToRemove) {
+                        await window.updateDoc(roomRef, {
+                            players: window.arrayRemove(playerToRemove),
+                        });
+
+                        // If the host leaves, delete the room
+                        if (roomData.hostId === playerId) {
+                             await window.deleteDoc(roomRef);
+                             console.log(`Host left, room ${roomCode} deleted.`);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Error cleaning up room on exit:", e);
+            }
+        }
+        navigateTo('mainMenu');
+        currentRoomCode = null;
+        currentPlayers = [];
+        document.getElementById('scenarioOutput').innerHTML = 'No scenario generated yet. Click the button to set the stage!';
+    }
+
+    // --- Gemini API Feature: Scenario Generator ---
+
+    async function fetchWithBackoff(url, options, retries = 5, delay = 1000) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 429 && i < retries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2; // Exponential backoff
+                    continue;
+                }
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+                }
+                return response.json();
+            } catch (error) {
+                if (i === retries - 1) throw error;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
+            }
+        }
+    }
+
+    async function generateGameScenario() {
+        const btn = document.getElementById('generateScenarioBtn');
+        const output = document.getElementById('scenarioOutput');
+        
+        btn.disabled = true;
+        btn.textContent = 'Generating scenario...';
+        output.innerHTML = '<span class="text-yellow-700">Summoning the drama... please wait.</span>';
+
+        const playerNames = currentPlayers.map(p => p.name);
+        const playerListString = playerNames.join(', ');
+
+        const systemPrompt = "You are a dramatic, ancient Indian narrator. Your task is to set a compelling, high-stakes scene for a game of Raja Mantri Chor Sipahi (King, Minister, Thief, Soldier). The four roles are Raja, Mantri, Chor, and Sipahi. The roles are secret. You must generate a short, one-paragraph story or challenge that explains what has happened and why the Mantri must find the Chor. Use the provided names in the narrative if possible. Do not reveal any roles or explicitly state who has which role. End with a dramatic call to action.";
+        
+        const userQuery = `The players are: ${playerListString}. Generate a dramatic scenario for their current game.`;
+
+        const payload = {
+            contents: [{ parts: [{ text: userQuery }] }],
+            systemInstruction: {
+                parts: [{ text: systemPrompt }]
+            },
+        };
+
+        try {
+            const result = await fetchWithBackoff(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            if (generatedText) {
+                output.innerHTML = `<span class="italic font-normal">${generatedText.trim()}</span>`;
+            } else {
+                throw new Error("Received empty or malformed response from AI.");
+            }
+        } catch (e) {
+            console.error("Gemini API Error:", e);
+            output.innerHTML = '<span class="text-red-500">Error generating scenario. Try again later.</span>';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '✨ Generate Dramatic Scenario';
+        }
+    }
+
+    // --- Core Game/Lobby Logic ---
+
+    // Function to render the player list and update button state
+    function renderLobby(roomData) {
+        currentPlayers = roomData.players; // Update global player list
+        const playersListUl = document.getElementById('playersList');
+        const startGameBtn = document.getElementById('startGameBtn');
+        const generateScenarioBtn = document.getElementById('generateScenarioBtn');
+        const isHost = roomData.hostId === getUserId();
+        
+        // Render Player List
+        playersListUl.innerHTML = roomData.players.map(p => 
+            `<li class="flex justify-between items-center p-2 rounded-md transition-colors duration-200 ${p.id === getUserId() ? 'bg-indigo-100 font-semibold border-l-4 border-indigo-500' : 'bg-white border'}">
+                <span>${p.name} ${p.id === roomData.hostId ? ' (Host)' : ''}</span>
+                <span class="text-sm text-gray-500">ID: ${p.id.substring(0, 4)}...</span>
+            </li>`
+        ).join('');
+
+        // Update LLM Scenario button state
+        generateScenarioBtn.disabled = !isHost;
+        if (!isHost) {
+             generateScenarioBtn.title = "Only the Host can generate the scenario.";
+        } else {
+             generateScenarioBtn.title = "Generate a new dramatic story for the game!";
+        }
+
+        // Update start button state
+        const neededPlayers = 4;
+        const playerCount = roomData.players.length;
+        
+        startGameBtn.disabled = !isHost || playerCount !== neededPlayers;
+        
+        startGameBtn.classList.remove('bg-green-600', 'hover:bg-green-700', 'bg-gray-400', 'cursor-not-allowed');
+
+        if (playerCount !== neededPlayers) {
+            startGameBtn.textContent = `Waiting for players (${playerCount}/${neededPlayers})`;
+            startGameBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+        } else {
+            startGameBtn.textContent = isHost ? "Start Game" : "Ready to Start";
+            if (isHost) {
+                startGameBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+            } else {
+                startGameBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+            }
+        }
+    }
+
+    // Set up the real-time listener for the room lobby
+    function setupLobbyListener(roomCode, playerName) {
+        currentRoomCode = roomCode;
+        navigateTo('gameScreen');
+
+        // Display room code and add copy button
+        const roomCodeContainer = document.getElementById('currentRoomCode');
+        roomCodeContainer.innerHTML = `
+            <span id="displayRoomCode" class="font-bold tracking-widest">${roomCode}</span>
+            <button id="copyRoomCodeBtn" class="copy-btn" title="Copy Room Code">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                    <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3h-2a3 3 0 01-3-3z" />
+                </svg>
+            </button>
+        `;
+
+        document.getElementById('copyRoomCodeBtn').onclick = () => copyRoomCode(roomCode);
+
+        const roomRef = window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'rmcs_rooms', roomCode);
+
+        // Clear existing listener if any
+        if (roomUnsubscribe) roomUnsubscribe();
+
+        // Start listening to real-time updates
+        roomUnsubscribe = window.onSnapshot(roomRef, (doc) => {
+            if (doc.exists()) {
+                const roomData = doc.data();
+                renderLobby(roomData);
+            } else {
+                // Room no longer exists
+                if (roomUnsubscribe) roomUnsubscribe();
+                navigateTo('mainMenu');
+                showMessage('Room Closed', 'The host has closed the room.');
+            }
+        }, (error) => {
+            console.error("Firestore listener error:", error);
+            if (roomUnsubscribe) roomUnsubscribe();
+            navigateTo('mainMenu');
+            showMessage('Connection Error', 'Failed to maintain connection to the game room.');
+        });
+        
+        // Update exit button action to clean up when leaving
+        document.getElementById('exitLobbyBtn').onclick = () => exitRoom(roomCode, getUserId());
+    }
+
+    // Function to handle room creation
+    async function createRoom() {
+        await window.authReadyPromise; // Wait for auth to be ready
+
+        const playerNameInput = document.getElementById('createPlayerName');
+        const customCodeInput = document.getElementById('createRoomCode');
+        const errorDisplay = document.getElementById('createRoomError');
+
+        const playerName = playerNameInput.value.trim();
+        let roomCode = customCodeInput.value.trim().toUpperCase();
+
+        if (!playerName) { errorDisplay.textContent = "Please enter your name."; return; }
+        if (!window.db || !window.auth.currentUser) { errorDisplay.textContent = "Authentication is not ready. Please wait a moment or refresh."; return; }
+        if (roomCode.length > 0 && roomCode.length !== 8) { errorDisplay.textContent = "Room code must be 8 characters long, or left blank for random."; return; }
+
+        errorDisplay.textContent = ""; // Clear previous errors
+
+        // 1. Generate unique room code if not provided
+        if (roomCode.length === 0) {
+            let exists = true;
+            // Loop until a unique code is found
+            while(exists) {
+                roomCode = generateRoomCode();
+                const roomDoc = await window.getDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'rmcs_rooms', roomCode));
+                exists = roomDoc.exists();
+            }
+        } else {
+            // Check if custom room code is already taken
+            const roomDoc = await window.getDoc(window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'rmcs_rooms', roomCode));
+            if (roomDoc.exists()) {
+                errorDisplay.textContent = `Room code ${roomCode} is already taken. Try another.`;
+                return;
+            }
+        }
+
+        const initialRoomData = {
+            code: roomCode,
+            status: 'LOBBY',
+            createdAt: new Date().getTime(),
+            hostId: getUserId(),
+            players: [{ id: getUserId(), name: playerName, role: 'unknown', score: 0 }],
+        };
+
+        const roomRef = window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'rmcs_rooms', roomCode);
+
+        try {
+            await window.setDoc(roomRef, initialRoomData);
+            console.log(`Room ${roomCode} created successfully.`);
+            setupLobbyListener(roomCode, playerName);
+        } catch (e) {
+            console.error("Error creating room: ", e);
+            errorDisplay.textContent = "Failed to create room. See console for details.";
+        }
+    }
+
+    // Function to handle joining a room
+    async function handleJoinRoom() {
+        await window.authReadyPromise; // Wait for auth to be ready
+
+        const playerName = document.getElementById('joinPlayerName').value.trim();
+        const roomCode = document.getElementById('joinRoomCode').value.trim().toUpperCase();
+        const errorDisplay = document.getElementById('joinRoomError');
+
+        if (!playerName || !roomCode) { errorDisplay.textContent = "Please enter both name and room code."; return; }
+        if (roomCode.length !== 8) { errorDisplay.textContent = "Room code must be 8 characters long."; return; }
+        if (!window.db || !window.auth.currentUser) { errorDisplay.textContent = "Authentication is not ready. Please wait a moment or refresh."; return; }
+
+        errorDisplay.textContent = ""; // Clear previous errors
+        const roomRef = window.doc(window.db, 'artifacts', window.appId, 'public', 'data', 'rmcs_rooms', roomCode);
+
+        try {
+            const roomDoc = await window.getDoc(roomRef);
+
+            if (!roomDoc.exists()) { errorDisplay.textContent = `Room ${roomCode} not found.`; return; }
+            const roomData = roomDoc.data();
+
+            if (roomData.players.length >= 4) { errorDisplay.textContent = "This room is already full."; return; }
+            if (roomData.players.some(p => p.id === getUserId())) { 
+                // Already in room, just join the lobby
+                setupLobbyListener(roomCode, playerName); 
+                return;
+            }
+            
+            // Add current player to the room's players array
+            await window.updateDoc(roomRef, {
+                players: window.arrayUnion({ id: getUserId(), name: playerName, role: 'unknown', score: 0 }),
+            });
+
+            console.log(`Successfully joined room ${roomCode}.`);
+            setupLobbyListener(roomCode, playerName);
+
+        } catch (e) {
+            console.error("Error joining room: ", e);
+            errorDisplay.textContent = "Failed to join room. See console for details.";
+        }
+    }
+
+
+    // --- Event Listeners Initialization ---
     document.getElementById('createRoomBtn').addEventListener('click', () => navigateTo('createScreen'));
     document.getElementById('joinRoomBtn').addEventListener('click', () => navigateTo('joinScreen'));
 
     document.querySelectorAll('.back-btn').forEach(button => {
       button.addEventListener('click', () => {
+        // If coming from create/join screen, just navigate back
         navigateTo(button.getAttribute('data-target') || 'mainMenu');
       });
     });
 
-    // Placeholder actions (to show functionality flow)
-    document.getElementById('createRoomFinal').addEventListener('click', () => {
-      const playerName = document.getElementById('createPlayerName').value.trim();
-      if (playerName) {
-        console.log(`Creating room for ${playerName}...`);
-        navigateTo('gameScreen');
-        document.getElementById('gameContent').innerHTML = `<p class="font-bold">Room created! Waiting for players...</p><p>Player: ${playerName}</p>`;
-      } else {
-        document.getElementById('createRoomError').textContent = "Please enter your name.";
-      }
+    document.getElementById('createRoomFinal').addEventListener('click', createRoom);
+    document.getElementById('joinRoomFinal').addEventListener('click', handleJoinRoom);
+    document.getElementById('messageBoxClose').addEventListener('click', () => {
+        document.getElementById('messageBox').classList.add('hidden');
     });
 
-    document.getElementById('joinRoomFinal').addEventListener('click', () => {
-      const playerName = document.getElementById('joinPlayerName').value.trim();
-      const roomCode = document.getElementById('joinRoomCode').value.trim();
-      if (playerName && roomCode) {
-        console.log(`Joining room ${roomCode} as ${playerName}...`);
-        navigateTo('gameScreen');
-        document.getElementById('gameContent').innerHTML = `<p class="font-bold">Joined Room: ${roomCode}</p><p>Player: ${playerName}</p>`;
-      } else {
-        document.getElementById('joinRoomError').textContent = "Please enter both name and room code.";
-      }
+    // LLM Feature Listener
+    document.getElementById('generateScenarioBtn').addEventListener('click', generateGameScenario);
+
+    // Placeholder for Start Game button (Host action)
+    document.getElementById('startGameBtn').addEventListener('click', () => {
+        showMessage('Game Start', 'Game logic to start the round would be triggered here.');
     });
 
   </script>
