@@ -5,25 +5,117 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Multiplayer Games Hub</title>
   <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body {
+      background: radial-gradient(circle at 60% 90%, #16234b 15%, #5449a3 60%, #4a8fe7 100%);
+      min-height: 100vh;
+    }
+    .main-logo {
+      max-width: 120px;
+      margin-bottom: 18px;
+      filter: drop-shadow(0 0 18px #31f2ffcc);
+    }
+    .big-title {
+      font-size: 2.4em;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #35fff7;
+      text-shadow: 0 4px 24px #17eafc88, 2px 2px 0 #203181;
+    }
+    .games-flex-outer {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 40px;
+      margin: 48px 0 0 0;
+      flex-wrap: wrap;
+    }
+    .game-glass-card {
+      position: relative;
+      background: rgba(45, 58, 98, 0.7);
+      border-radius: 33px;
+      padding: 40px 30px 28px 30px;
+      min-width: 300px; max-width: 350px;
+      box-shadow: 0 10px 60px #00ffc822, 0 0 1px #000a;
+      border: 2.5px solid #3adfff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: transform 180ms cubic-bezier(.24,.74,.58,1.29), box-shadow 0.2s;
+      cursor: pointer;
+      margin: 16px 0;
+      z-index: 4;
+    }
+    .game-glass-card:hover, .game-glass-card:focus {
+      transform: translateY(-5px) scale(1.05);
+      box-shadow: 0 15px 52px #35fff922, 0 2px 18px #11cafbe0;
+      background: rgba(44, 63, 125, 0.85);
+    }
+    .game__icon-wrap {
+      width: 88px; height: 88px;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #3fffdc 55%, #8cd6fa 100%);
+      border-radius: 50%;
+      margin-bottom: 17px;
+      box-shadow: 0 2px 22px #18fff788, 0 1px 0 #fff3;
+    }
+    .game__icon {
+      font-size: 3.3em;
+      text-shadow: 0 2px 8px #fff8, 0 1.5px 0 #34343422;
+    }
+    .game-glass-card h2 {
+      font-size: 1.5em;
+      color: #e9ffff;
+      letter-spacing: 1.5px;
+      margin: 8px 0 5px 0;
+      font-weight: 700;
+      text-shadow: 0 1px 6px #26e6f780;
+    }
+    .game-glass-card p {
+      color: #cdebfa;
+      font-size: 1.1em;
+      margin: 0 0 6px 0;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+    .footer-sign {
+      text-align: center;
+      margin-top: 36px;
+      color: #93d6f7;
+      opacity: 0.7;
+      font-size: 1.07em;
+    }
+    @media (max-width:700px) {
+      .games-flex-outer { flex-direction: column; align-items: center; gap: 0;}
+      .game-glass-card { min-width: 92vw; max-width:97vw; }
+      .main-logo { max-width: 70px;}
+      .big-title { font-size: 1.2em;}
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <h1 class="main-title">🎮 Multiplayer Games Hub</h1>
-      <p class="subtitle">Play with friends, no login required!</p>
-    </header>
-    <main class="game-grid">
-      <div class="game-card" onclick="location.href='rmcs.html'">
-        <div class="card-icon">👑</div>
+  <div class="centered-bg">
+    <div class="logo-block">
+      <img src="assets/gamehub-logo.png" alt="Game Hub" class="main-logo"/>
+      <div class="big-title">🎮 Multiplayer Game Universe</div>
+      <div class="subtitle" style="font-size:1.17em;color:#d9fcff;margin:7px auto 20px;max-width:410px;">
+        Innovative party classics, play instantly with friends. No login, just fun!
+      </div>
+    </div>
+    <div class="games-flex-outer">
+      <div class="game-glass-card" onclick="window.location.href='rmcs.html';" tabindex="0">
+        <div class="game__icon-wrap"><span class="game__icon">👑</span></div>
         <h2>Raja Mantri Chor Sipahi</h2>
-        <p>Classic Indian game of roles and deduction</p>
+        <p>The legendary Indian deception game — bluff and deduce to win as King, Minister, Thief, or Soldier.</p>
       </div>
-      <div class="game-card" onclick="location.href='detective.html'">
-        <div class="card-icon">🔍</div>
+      <div class="game-glass-card" onclick="window.location.href='detective.html';" tabindex="0">
+        <div class="game__icon-wrap"><span class="game__icon">🕵️‍♂️</span></div>
         <h2>Detective Killer</h2>
-        <p>Mystery game of survival and investigation</p>
+        <p>Survive. Investigate. Unmask the killer in this fast-paced social deduction thriller for all ages.</p>
       </div>
-    </main>
+      <!-- Add more game-cards here for future expansion -->
+    </div>
+    <div class="footer-sign">Crafted by Sahil | v2.0 &copy; 2025</div>
   </div>
 </body>
 </html>
