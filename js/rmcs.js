@@ -135,36 +135,49 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   };
 
-  // --- Listen and Draw Lobby/Game Screen ---
-  function listenToRoom(roomCode) {
-    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-    unsubscribe = db.collection('rmcs_rooms').doc(roomCode)
-      .onSnapshot(doc => {
-        const data = doc.data();
-        if (!data) return;
-        const players = data.players || [];
-        const selfId = firebase.auth().currentUser?.uid;
-        renderRoomCode(roomCode);
-        renderPlayersList(players);
-        renderAvatarsTable(players, selfId);
+// --- Listen and Draw Lobby/Game Screen ---
+function listenToRoom(roomCode) {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  unsubscribe = db.collection('rmcs_rooms').doc(roomCode)
+    .onSnapshot(doc => {
+      const data = doc.data();
+      if (!data) return;
+      const players = data.players || [];
+      const selfId = firebase.auth().currentUser?.uid;
+      renderRoomCode(roomCode);
+      renderPlayersList(players);
+      renderAvatarsTable(players, selfId);
 
-        // Lobby: Set start button state for host
-        if (startGameBtn) {
-          startGameBtn.disabled = !players.some(p => p.id === selfId && p.id === players[0].id) || players.length !== 4 || data.phase !== 'lobby';
-        }
+      // Check if current user is host
+      let isHost = players.length > 0 && selfId === players[0].id;
+      // Button logic: enabled only for host, phase lobby, and 4 players
+      if (startGameBtn) {
+        startGameBtn.disabled = !(isHost && players.length === 4 && data.phase === 'lobby');
+        // Always update handler since it might be removed by re-render
+        startGameBtn.onclick = async () => {
+          if (!(isHost && players.length === 4 && data.phase === 'lobby')) return;
+          const roomRef = db.collection('rmcs_rooms').doc(roomId);
+          const roles = assignRoles(players);
+          await roomRef.update({
+            phase: 'reveal',
+            playerRoles: roles,
+            revealed: []
+          });
+        };
+      }
 
-        if (data.phase === 'lobby') {
-          document.getElementById('gameContent')?.classList?.remove('hidden');
-          // Only in lobby rendered for host, Start Game
-        } else if (data.phase === 'reveal') {
-          document.getElementById('gameContent')?.classList?.add('hidden');
-          showRoleRevealScreen(players, selfId, data.playerRoles, data.revealed || []);
-        } else if (data.phase === 'guess') {
-          document.getElementById('gameContent')?.classList?.add('hidden');
-          showSipahiGuessUI(data.playerRoles, selfId);
-        }
-      });
-  }
+      if (data.phase === 'lobby') {
+        document.getElementById('gameContent')?.classList?.remove('hidden');
+      } else if (data.phase === 'reveal') {
+        document.getElementById('gameContent')?.classList?.add('hidden');
+        showRoleRevealScreen(players, selfId, data.playerRoles, data.revealed || []);
+      } else if (data.phase === 'guess') {
+        document.getElementById('gameContent')?.classList?.add('hidden');
+        showSipahiGuessUI(data.playerRoles, selfId);
+      }
+    });
+}
+
 
   // --- Start Game (host only) ---
   startGameBtn.onclick = async () => {
