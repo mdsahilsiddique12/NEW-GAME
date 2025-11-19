@@ -1,60 +1,168 @@
-<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8"/> <meta name="viewport" content="width=device-width,initial-scale=1.0"/> <title>Raja Mantri Chor Sipahi</title> <!-- Tailwind --> <script src="https://cdn.tailwindcss.com"></script> <!-- Keep your visual style; unchanged look --> <style> :root { font-family: 'Inter', sans-serif; } .centered-bg{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f0f4f8 0%,#d9e2ec 100%);padding:1rem;} .logo-block{margin-bottom:2rem;text-align:center;} .menu-screen{display:none;width:100%;max-width:380px;padding:2rem;background:#fff;border-radius:1.5rem;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);animation:fadeIn .5s ease-out;} .active-screen{display:flex;flex-direction:column;gap:1rem;} .giant-btn,.confirm-btn,.back-btn{@apply w-full py-4 text-xl font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 hover:shadow-2xl;} .create-btn{@apply bg-indigo-600 text-white hover:bg-indigo-700;} .join-btn{@apply bg-green-500 text-white hover:bg-green-600;} .confirm-btn{@apply bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700;} .back-btn{@apply bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300;} .input-field{@apply w-full p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 transition-colors duration-200 shadow-sm hover:shadow-md focus:ring-4 focus:ring-indigo-200;} @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}} /* Game table area used by scripts */ .game-table{ position:relative; width:300px; height:300px; margin:0 auto; } .table{ position:absolute; inset:0; border-radius:20px; } .avatar{ position:absolute; width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;background:#fff;box-shadow:0 4px 8px rgba(0,0,0,.2); } .avatar-name{ position:absolute; top:-22px; left:50%; transform:translateX(-50%); font-size:.8rem; font-weight:700; color:#333;} /* Overlay message box (kept from your GUI) */ #messageBox{ @apply fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center hidden; } #messageBoxContent{ @apply bg-white p-8 rounded-xl shadow-2xl max-w-sm text-center; } /* Responsive wideners for desktop */ @media (min-width:900px){ .menu-screen{max-width:700px;} .game-table{ width:440px; height:440px; } .avatar{ width:80px; height:80px; font-size:2.2rem;} } </style> </head> <body> <div class="centered-bg"> <!-- Logo --> <div class="logo-block"> <svg class="main-logo w-24 h-24 sm:w-32 sm:h-32 text-indigo-700 mx-auto" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" alt="Raja Mantri Chor Sipahi Logo"> <rect x="0" y="0" width="100" height="100" rx="20" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="2"/> <path d="M50 15 L40 35 L60 35 L50 15 Z M40 35 L45 45 L55 45 L60 35 Z" fill="#FFD700" stroke="#CCAA00" stroke-width="3"/> <rect x="15" y="55" width="30" height="25" rx="5" fill="#4CAF50" stroke="#388E3C" stroke-width="3"/> <circle cx="70" cy="67" r="15" fill="#333333" stroke="#111111" stroke-width="3"/> <path d="M65 67 L75 67 M70 52 L70 82" stroke="#F0F0F0" stroke-width="2" stroke-linecap="round"/> <path d="M50 50 L35 70 L65 70 L50 50 Z M35 70 L35 85 L65 85 L65 70 Z" fill="#2196F3" stroke="#1976D2" stroke-width="3"/> <circle cx="50" cy="50" r="5" fill="#CCAA00"/> </svg> <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-800 mt-5 tracking-wide">Raja Mantri Chor Sipahi</h1> </div>
-<div id="screens">
-  <!-- Main Menu -->
-  <div id="mainMenu" class="menu-screen active-screen">
-    <button class="giant-btn create-btn">Create Room</button>
-    <button class="giant-btn join-btn">Join Room</button>
-  </div>
-
-  <!-- Create -->
-  <div id="createScreen" class="menu-screen">
-    <h2 class="text-2xl font-bold mb-4 text-gray-800">Create New Room</h2>
-    <input type="text" id="createPlayerName" class="input-field fancy" placeholder="Enter your name"/>
-    <input type="text" id="createRoomCode" maxlength="8" class="input-field fancy" placeholder="Room code (optional, 8 chars)"/>
-    <button id="createRoomFinal" class="confirm-btn">Create</button>
-    <button class="back-btn" data-target="mainMenu">Back</button>
-    <div id="createRoomError" class="error-msg text-red-500 mt-2 text-sm"></div>
-  </div>
-
-  <!-- Join -->
-  <div id="joinScreen" class="menu-screen">
-    <h2 class="text-2xl font-bold mb-4 text-gray-800">Join Room</h2>
-    <input type="text" id="joinPlayerName" class="input-field fancy" placeholder="Enter your name"/>
-    <input type="text" id="joinRoomCode" maxlength="8" class="input-field fancy uppercase" placeholder="Enter room code"/>
-    <button id="joinRoomFinal" class="confirm-btn">Join</button>
-    <button class="back-btn" data-target="mainMenu">Back</button>
-    <div id="joinRoomError" class="error-msg text-red-500 mt-2 text-sm"></div>
-  </div>
-
-  <!-- Game Screen -->
-  <div id="gameScreen" class="menu-screen">
-    <h2 class="text-3xl font-bold mb-4 text-gray-800">Room Lobby</h2>
-
-    <div id="roomCodeContainer" class="mb-4">
-      <p class="text-gray-600 mb-2 font-semibold">Share this Room Code:</p>
-      <div id="currentRoomCode" class="room-code-display bg-indigo-50 border border-indigo-200 text-indigo-800 p-3 rounded-lg flex items-center justify-between font-mono text-xl select-none"></div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Raja Mantri Chor Sipahi</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { font-family: 'Inter', sans-serif; }
+    .centered-bg {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+      padding: 1rem;
+    }
+    .logo-block {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    .menu-screen {
+      display: none;
+      width: 100%;
+      max-width: 380px;
+      padding: 2rem;
+      background-color: #ffffff;
+      border-radius: 1.5rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      animation: fadeIn 0.5s ease-out;
+    }
+    .active-screen { display: flex; flex-direction: column; gap: 1rem; }
+    .giant-btn, .confirm-btn, .back-btn {
+      @apply w-full py-4 text-xl font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 hover:shadow-2xl;
+    }
+    .create-btn { @apply bg-indigo-600 text-white hover:bg-indigo-700; }
+    .join-btn { @apply bg-green-500 text-white hover:bg-green-600; }
+    .confirm-btn { @apply bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700; }
+    .back-btn { @apply bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300; }
+    .input-field {
+      @apply w-full p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 transition-colors duration-200 shadow-sm hover:shadow-md focus:ring-4 focus:ring-indigo-200;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .room-code-display {
+      @apply bg-indigo-50 border border-indigo-200 text-indigo-800 p-3 rounded-lg flex items-center justify-between font-mono text-xl select-none;
+    }
+    .copy-btn {
+      @apply ml-3 p-2 bg-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-300 transition-colors duration-200;
+    }
+    #messageBox {
+      @apply fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center hidden;
+    }
+    #messageBoxContent {
+      @apply bg-white p-8 rounded-xl shadow-2xl max-w-sm text-center transform scale-100 transition-transform duration-300;
+    }
+    /* 3D Table View */
+    .game-table {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin: 2rem auto;
+      perspective: 1000px;
+    }
+    .table {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: #d4af37;
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+      transform-style: preserve-3d;
+    }
+    .avatar {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .avatar-name {
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="js/firebase-config.js"></script>
+</head>
+<body>
+  <div class="centered-bg">
+    <div class="logo-block">
+      <svg class="main-logo w-24 h-24 sm:w-32 sm:h-32 text-indigo-700 mx-auto" 
+           viewBox="0 0 100 100" 
+           fill="none" 
+           xmlns="http://www.w3.org/2000/svg" 
+           alt="Raja Mantri Chor Sipahi Logo">
+        <rect x="0" y="0" width="100" height="100" rx="20" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="2"/>
+        <path d="M50 15 L40 35 L60 35 L50 15 Z M40 35 L45 45 L55 45 L60 35 Z" fill="#FFD700" stroke="#CCAA00" stroke-width="3"/>
+        <rect x="15" y="55" width="30" height="25" rx="5" fill="#4CAF50" stroke="#388E3C" stroke-width="3"/>
+        <circle cx="70" cy="67" r="15" fill="#333333" stroke="#111111" stroke-width="3"/>
+        <path d="M65 67 L75 67 M70 52 L70 82" stroke="#F0F0F0" stroke-width="2" stroke-linecap="round"/>
+        <path d="M50 50 L35 70 L65 70 L50 50 Z M35 70 L35 85 L65 85 L65 70 Z" fill="#2196F3" stroke="#1976D2" stroke-width="3"/>
+        <circle cx="50" cy="50" r="5" fill="#CCAA00"/>
+      </svg>
+      <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-800 mt-5 tracking-wide">Raja Mantri Chor Sipahi</h1>
     </div>
-
-    <div id="roundDisplay" class="mb-3 hidden"></div>
-
-    <h3 class="text-xl font-semibold mb-2 text-gray-700">Players in Room:</h3>
-    <ul id="playersList" class="space-y-2 mb-6 p-3 bg-gray-50 rounded-lg border">
-      <li class="text-gray-500 text-center">Loading players...</li>
-    </ul>
-
-    <div id="hostControlsContainer" class="mb-4"></div>
-
-    <div id="gameContent" class="game-content">
-      <div class="table">
-        <!-- script will render dynamic content here (roles, guess, results) -->
+    <div id="screens">
+      <div id="mainMenu" class="menu-screen active-screen">
+        <button id="createRoomBtn" class="giant-btn create-btn">Create Room</button>
+        <button id="joinRoomBtn" class="giant-btn join-btn">Join Room</button>
       </div>
-      <div class="game-table mt-6">
-        <!-- script will render avatars or phase UIs here -->
+      <div id="createScreen" class="menu-screen">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">Create New Room</h2>
+        <input type="text" id="createPlayerName" class="input-field fancy" placeholder="Enter your name" />
+        <input type="text" id="createRoomCode" maxlength="8" class="input-field fancy" placeholder="Room code (optional, 8 chars)" />
+        <button id="createRoomFinal" class="confirm-btn">Create</button>
+        <button class="back-btn" data-target="mainMenu">Back</button>
+        <div id="createRoomError" class="error-msg text-red-500 mt-2 text-sm"></div>
+      </div>
+      <div id="joinScreen" class="menu-screen">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">Join Room</h2>
+        <input type="text" id="joinPlayerName" class="input-field fancy" placeholder="Enter your name" />
+        <input type="text" id="joinRoomCode" maxlength="8" class="input-field fancy uppercase" placeholder="Enter room code" />
+        <button id="joinRoomFinal" class="confirm-btn">Join</button>
+        <button class="back-btn" data-target="mainMenu">Back</button>
+        <div id="joinRoomError" class="error-msg text-red-500 mt-2 text-sm"></div>
+      </div>
+      <div id="gameScreen" class="menu-screen">
+        <h2 class="text-3xl font-bold mb-4 text-gray-800">Room Lobby</h2>
+        <div id="roomCodeContainer" class="mb-4">
+          <p class="text-gray-600 mb-2 font-semibold">Share this Room Code:</p>
+          <div id="currentRoomCode" class="room-code-display">
+            </div>
+        </div>
+        <h3 class="text-xl font-semibold mb-3 text-gray-700">Players in Room:</h3>
+        <div class="game-table">
+          <div class="table"></div>
+          </div>
+        <button id="startGameBtn" class="confirm-btn">Start Game</button>
+        <button id="exitLobbyBtn" class="back-btn mt-4">Exit Lobby</button>
       </div>
     </div>
-
-    <button id="startGameBtn" class="confirm-btn">Start Game</button>
-    <button id="exitLobbyBtn" class="back-btn mt-4">Exit Lobby</button>
   </div>
-</div>
-</div> <!-- Message Overlay --> <div id="messageBox" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center"> <div id="messageBoxContent" class="bg-white p-8 rounded-xl shadow-2xl max-w-sm text-center"> <h3 id="messageBoxTitle" class="text-2xl font-bold mb-3">Message</h3> <p id="messageBoxText" class="text-gray-700 mb-6"></p> <button id="messageBoxClose" class="confirm-btn bg-indigo-600 hover:bg-indigo-700 !py-2 !px-6 !text-base">OK</button> </div> </div> <!-- Game Script (Firebase v11 modular) --> <script type="module"> import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"; import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"; import { getFirestore, doc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove, setLogLevel, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // Canvas/injected globals const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'; const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}'); const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; // Firestore collection path const ROOMS_COLLECTION = \`artifacts/\${appId}/public/data/rmcs_rooms\`; // Game constants const ROLE_POINTS = { Raja: 1000, Mantri: 500, SipahiCorrect: 250, SipahiWrong: 0, ChorCaught: 0, ChorEscaped: 250 }; const ROLES = ['Raja','Mantri','Chor','Sipahi']; // State let db, auth; let currentUserId = null; let roomId = ''; let playerName = ''; let isHost = false; let roomListenerUnsubscribe = null; let currentRoomData = null; // Simple helpers const gid = id => document.getElementById(id); const qs = s => document.querySelector(s); const esc = s => (s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); function showMessage(title, text) { const box = gid('messageBox'); gid('messageBoxTitle').textContent = title; gid('messageBoxText').textContent = text; gid('messageBoxClose').onclick = ()=> box.classList.add('hidden'); box.classList.remove('hidden'); } function showScreen(id){ ['mainMenu','createScreen','joinScreen','gameScreen'].forEach(k=>gid(k)?.classList.remove('active-screen')); gid(id)?.classList.add('active-screen'); } function renderRoomCode(code){ const c = gid('currentRoomCode'); if (!c) return; c.innerHTML = \` <span class="font-mono font-bold">\${code}</span> <button id="copyRoomCodeBtn" class="ml-2 px-2 py-1 bg-indigo-200 text-indigo-700 rounded hover:bg-indigo-300 transition-colors">Copy</button>\`; gid('copyRoomCodeBtn').onclick = ()=>{ const ta=document.createElement('textarea'); ta.value=code; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showMessage('Copied!', 'Room code has been copied to your clipboard.'); }; } function renderPlayersList(players, state){ const ul = gid('playersList'); if (!ul) return; ul.innerHTML = players.map(p=>{ const self=p.id===currentUserId, host=p.id===currentRoomData?.hostId; const status = state==='playing'?'In Game':'In Lobby'; return \`<li class="flex justify-between items-center p-2 rounded-lg \${self?'bg-indigo-100 font-bold':'bg-white border'}"> <span>\${esc(p.name)} \${host?'(Host)':''} \${self?'(You)':''}</span> <span class="text-sm text-gray-500">\${status}</span></li>\`; }).join(''); } function renderRoundDisplay(round){ const el = gid('roundDisplay'); if (!el) return; el.innerHTML = \`<h2 class="text-3xl font-bold text-gray-800">Round <span class="text-indigo-600">\${round||0}</span></h2>\`; if (!round) el.classList.add('hidden'); else el.classList.remove('hidden'); } function renderGameLobby(count){ const table = gid('gameContent')?.querySelector('.table'); if (!table) return; table.innerHTML = \` <div class="text-center p-4"> <h3 class="text-xl font-semibold text-gray-700 mb-2">Waiting for Host to Start...</h3> <p class="text-gray-500">\${count}/4 minimum players joined.</p> </div>\`; } // Firebase init document.addEventListener('DOMContentLoaded', async ()=>{ setLogLevel('debug'); try{ const app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app); if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken); else await signInAnonymously(auth); }catch(e){ console.error('Init/Auth error', e); showMessage('Initialization Error','Could not connect to the game service. Please refresh.'); } onAuthStateChanged(auth, (user)=>{ if (user){ currentUserId = user.uid; setupUIListeners(); }else{ currentUserId = null; showMessage('Signed Out','You have been signed out.'); } }); }); function setupUIListeners(){ qs('.create-btn').onclick = ()=> showScreen('createScreen'); qs('.join-btn').onclick = ()=> showScreen('joinScreen'); [...document.querySelectorAll('.back-btn')].forEach(btn=> btn.onclick = (e)=> showScreen(e.target.dataset.target || 'mainMenu')); gid('startGameBtn').onclick = startGame; gid('exitLobbyBtn').onclick = ()=> exitRoom(); gid('createRoomFinal').onclick = createRoom; gid('joinRoomFinal').onclick = joinRoom; } // Room create/join/enter/exit async function createRoom(){ playerName = gid('createPlayerName').value.trim(); if (!playerName || !currentUserId) return showMessage('Error','Enter your name and ensure you are signed in.'); try{ const code = Math.random().toString(36).substring(2, 6).toUpperCase(); const roomRef = doc(db, ROOMS_COLLECTION, code); const initialPlayer = { id: currentUserId, name: playerName, score: 0, role: null }; const initialRoomData = { hostId: currentUserId, players: [initialPlayer], state: 'lobby', phase: 'lobby', round: 0, roles: {}, guess: {}, created: Date.now() }; await setDoc(roomRef, initialRoomData); roomId = code; isHost = true; showMessage('Room Created!', \`Room code is: \${roomId}. Share it!\`); enterRoom(roomId); }catch(e){ console.error(e); showMessage('Creation Failed','Could not create room. Try again.'); } } async function joinRoom(){ playerName = gid('joinPlayerName').value.trim(); const code = gid('joinRoomCode').value.trim().toUpperCase(); if (!playerName || !code || !currentUserId) return showMessage('Error','Enter your name and room code.'); try{ const roomRef = doc(db, ROOMS_COLLECTION, code); const playerObj = { id: currentUserId, name: playerName, score: 0, role: null }; await updateDoc(roomRef, { players: arrayUnion(playerObj) }); roomId = code; isHost = false; enterRoom(roomId); }catch(e){ console.error(e); showMessage('Join Failed','Room not found or join error.'); } } function enterRoom(code){ if (roomListenerUnsubscribe) roomListenerUnsubscribe(); showScreen('gameScreen'); renderRoomCode(code); const roomRef = doc(db, ROOMS_COLLECTION, code); roomListenerUnsubscribe = onSnapshot(roomRef, (snap)=>{ if (snap.exists()){ currentRoomData = snap.data(); handleGameUpdate(currentRoomData); }else{ showMessage('Room Closed','The room no longer exists. Returning to menu.'); exitRoom(false); } },(err)=>{ console.error(err); showMessage('Connection Error','Lost connection to room.'); exitRoom(false); }); } async function exitRoom(shouldUpdate=true){ if (roomListenerUnsubscribe){ roomListenerUnsubscribe(); roomListenerUnsubscribe=null; } if (shouldUpdate && roomId && currentUserId && currentRoomData){ try{ const roomRef = doc(db, ROOMS_COLLECTION, roomId); const toRemove = { id: currentUserId, name: playerName, score: 0, role: null }; await updateDoc(roomRef, { players: arrayRemove(toRemove) }); }catch(e){ console.warn('Remove player failed', e); } } roomId=''; playerName=''; isHost=false; currentRoomData=null; showScreen('mainMenu'); } // Game state machine function handleGameUpdate(data){ const players = data.players||[]; isHost = data.hostId === currentUserId; renderRoundDisplay(data.round); renderPlayersList(players, data.state); // Host controls renderHostControls(data, players.length); if (data.state==='lobby'){ renderGameLobby(players.length); } else if (data.state==='playing'){ if (data.phase==='rolesAssigned') renderRoleAssignment(data); else if (data.phase==='guessing') renderGuessingPhase(data); else if (data.phase==='roundResult') renderRoundResult(data); } } function renderHostControls(data, count){ const wrap = gid('hostControlsContainer'); const start = gid('startGameBtn'); start.classList.add('hidden'); wrap.innerHTML=''; if (!isHost) return; if (data.state==='playing'){ if (data.phase==='roundResult'){ wrap.innerHTML = \` <button id="nextRoundBtn" class="confirm-btn w-full bg-green-500 hover:bg-green-600">Next Round</button> <button id="cancelRoundBtn" class="back-btn w-full mt-3 bg-red-500 text-white hover:bg-red-600">Cancel Round / End Game</button>\`; gid('nextRoundBtn').onclick = startNewRound; gid('cancelRoundBtn').onclick = cancelRound; }else{ wrap.innerHTML = \` <p class="text-sm font-semibold text-gray-700 mb-2">Host Actions:</p> <button id="cancelRoundBtn" class="back-btn w-full bg-red-500 text-white hover:bg-red-600">Cancel Round</button>\`; gid('cancelRoundBtn').onclick = cancelRound; } } else { start.classList.remove('hidden'); start.disabled = count < 4; start.textContent = count<4 ? \`Need \${4-count} players to Start\` : 'Start Game'; } } function renderRoleAssignment(data){ const table = gid('gameContent')?.querySelector('.table'); if (!table) return; const myRole = Object.keys(data.roles).find(r => data.roles[r]===currentUserId); const ROLE_CLS = { Raja:'bg-yellow-500 text-yellow-900 shadow-lg shadow-yellow-500/50', Mantri:'bg-green-500 text-green-900 shadow-lg shadow-green-500/50', Sipahi:'bg-indigo-500 text-indigo-900 shadow-lg shadow-indigo-500/50', Chor:'bg-red-500 text-red-900 shadow-lg shadow-red-500/50', Spectator:'bg-gray-400 text-gray-800 shadow-lg shadow-gray-400/50' }; const title = myRole? \`You are the \${myRole}!\` : 'Spectator'; const msg = myRole==='Raja'?'You automatically get 1000 points.' : myRole==='Mantri'?'You get 500 points. Claim to proceed.' : myRole==='Sipahi'?'Wait for Mantri to claim, then guess.' : myRole==='Chor'?'Stay low and avoid suspicion.' : 'Observing the round.'; table.innerHTML = \` <div class="flex flex-col items-center p-6 w-full"> <div class="role-card p-4 rounded-xl text-center w-full max-w-xs \${ROLE_CLS[myRole]||ROLE_CLS.Spectator}"> <h3 class="text-3xl font-extrabold mb-2">\${title}</h3> <p class="text-lg text-white font-semibold">\${msg}</p> </div> <div id="roleActionArea" class="mt-6 w-full max-w-sm"> \${myRole==='Mantri' ? '<button id="claimMantriBtn" class="confirm-btn w-full bg-green-700 hover:bg-green-800 giant-btn">I Claim Mantri! (500 pts)</button>' : '<button disabled class="back-btn w-full giant-btn">Waiting for Mantri...</button>'} </div> </div>\`; if (myRole==='Mantri'){ gid('claimMantriBtn').onclick = async ()=>{ await updateDoc(doc(db, ROOMS_COLLECTION, roomId), { phase:'guessing' }); showMessage('Mantri Claimed','The Sipahi can now make their guess.'); }; } } function renderGuessingPhase(data){ const table = gid('gameContent')?.querySelector('.table'); if (!table) return; const isSipahi = currentUserId === data.roles['Sipahi']; const guessable = data.players.filter(p=> p.id!==data.roles['Sipahi'] && p.id!==data.roles['Raja']); if (isSipahi){ table.innerHTML = \` <div class="flex flex-col items-center p-6 w-full"> <h3 class="text-2xl font-bold text-gray-800 mb-4">Sipahi: Guess the Chor!</h3> <p class="text-lg text-gray-600 mb-6">Which player is the Chor?</p> <div class="space-y-3 w-full max-w-xs"> \${guessable.map(p=>\`<button data-id="\${p.id}" class="guess-player-btn giant-btn w-full bg-red-400 text-red-900 hover:bg-red-500">Accuse \${esc(p.name)}</button>\`).join('')} </div> </div>\`; table.querySelectorAll('.guess-player-btn').forEach(btn=>{ btn.onclick = async (e)=>{ const guessedId = e.target.dataset.id; const correct = guessedId === data.roles['Chor']; await calculateRoundResult(data, correct, guessedId); await updateDoc(doc(db, ROOMS_COLLECTION, roomId), { phase:'roundResult', guess:{ sipahiId: currentUserId, guessedChorId: guessedId, isCorrect: correct } }); }; }); } else { table.innerHTML = \` <div class="flex flex-col items-center p-6 w-full"> <h3 class="text-2xl font-bold text-gray-800 mb-4">Guessing in Progress...</h3> <p class="text-lg text-gray-600 mb-6">The Sipahi is making a choice.</p> <div class="rounded-full h-12 w-12 border-4 border-gray-200 border-t-indigo-500 animate-spin"></div> </div>\`; } } async function calculateRoundResult(data, isCorrect, guessedId){ const ref = doc(db, ROOMS_COLLECTION, roomId); const players = data.players, roles = data.roles; const delta = { [roles['Raja']]: ROLE_POINTS.Raja, [roles['Mantri']]: ROLE_POINTS.Mantri, [roles['Sipahi']]: isCorrect? ROLE_POINTS.SipahiCorrect : ROLE_POINTS.SipahiWrong, [roles['Chor']]: isCorrect? ROLE_POINTS.ChorCaught : ROLE_POINTS.ChorEscaped }; const updated = players.map(p=> ({...p, score: (p.score||0) + (delta[p.id]||0)})); await updateDoc(ref, { players: updated }); } function renderRoundResult(data){ const table = gid('gameContent')?.querySelector('.table'); if (!table) return; const getName = id => data.players.find(p=>p.id===id)?.name || 'Unknown'; const chor = getName(data.roles['Chor']); const sipahi = getName(data.roles['Sipahi']); const guessed = getName(data.guess.guessedChorId); const ok = data.guess.isCorrect; const title = ok? 'SUCCESS!' : 'CHOR ESCAPES!'; const msg = ok ? \`\${sipahi} correctly identified \${chor} as the Chor!\` : \`\${sipahi} guessed \${guessed}. The Chor was \${chor}!\`; const emoji = ok?'🎉':'😥'; table.innerHTML = \` <div class="flex flex-col justify-center items-center min-h-[200px] p-6 w-full"> <div class="text-6xl mb-4 animate-bounce">\${emoji}</div> <div class="rounded-2xl shadow-xl py-4 px-8 mb-6 text-2xl font-bold text-center w-full max-w-sm \${ok?'bg-green-100 text-green-900':'bg-red-100 text-red-900'}"> <h3 class="text-3xl font-extrabold mb-2">\${title}</h3> <p class="text-lg font-semibold">\${msg}</p> </div> </div>\`; } // Host actions async function startGame(){ if (!isHost) return; const ref = doc(db, ROOMS_COLLECTION, roomId); await updateDoc(ref, { state:'playing', round:1 }); await assignRoles(); } async function startNewRound(){ if (!isHost) return; const ref = doc(db, ROOMS_COLLECTION, roomId); await updateDoc(ref, { round:(currentRoomData.round||0)+1, phase:'rolesAssigned', roles:{}, guess:{} }); await assignRoles(); } async function cancelRound(){ if (!isHost) return; const ref = doc(db, ROOMS_COLLECTION, roomId); await updateDoc(ref, { state:'lobby', phase:'lobby', round:0, roles:{}, guess:{} }); showMessage('Round Cancelled','The game is back in the lobby.'); } async function assignRoles(){ if (!isHost) return; const ref = doc(db, ROOMS_COLLECTION, roomId); const snap = await getDoc(ref); const players = snap.data().players; if (players.length<4) return showMessage('Error','Need at least 4 players.'); const shuffled = [...players].sort(()=>Math.random()-0.5); const roles = {}; ROLES.forEach((r,i)=>{ if (shuffled[i]) roles[r]=shuffled[i].id; }); await updateDoc(ref, { phase:'rolesAssigned', roles, guess:{} }); } </script> </body> </html>
+  <div id="messageBox">
+    <div id="messageBoxContent">
+      <h3 id="messageBoxTitle" class="text-2xl font-bold mb-3">Message</h3>
+      <p id="messageBoxBody" class="text-gray-700 mb-6"></p>
+      <button id="messageBoxClose" class="confirm-btn bg-indigo-600 hover:bg-indigo-700 !py-2 !px-6 !text-base">OK</button>
+    </div>
+  </div>
+  <script src="js/rmcs.js"></script>
+</body>
+</html>
