@@ -1,890 +1,634 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { 
-    getAuth, 
-    signInAnonymously, 
-    signInWithCustomToken, 
-    onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { 
-    getFirestore, 
-    doc, 
-    setDoc, 
-    updateDoc, 
-    onSnapshot, 
-    collection, 
-    query, 
-    where, 
-    addDoc, 
-    getDocs, 
-    deleteDoc, 
-    runTransaction,
-    serverTimestamp,
-    // Add for array removal if needed, though transactions are safer for complex updates
-    // arrayRemove, arrayUnion 
-} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+document.addEventListener("DOMContentLoaded", function() {
+  const mainMenu = document.getElementById('mainMenu');
+  const createScreen = document.getElementById('createScreen');
+  const joinScreen = document.getElementById('joinScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  // playersList is not used in the HTML/JS provided but kept for compatibility
+  const playersList = document.getElementById('playersList'); 
+  const currentRoomCode = document.getElementById('currentRoomCode');
+  const startGameBtn = document.getElementById('startGameBtn');
+  const exitLobbyBtn = document.getElementById('exitLobbyBtn');
+  // The .game-table element contains the avatars in the lobby and all game UI in other phases
+  const gameTable = document.querySelector('.game-table'); 
+  
+  // State variables
+  let unsubscribe = null, roomId = '', playerName = '';
+  // The global 'db' object (Firebase Firestore instance) is assumed to be defined in js/firebase-config.js
 
-// Global variables provided by the environment
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+  function showScreen(show) {
+    [mainMenu, createScreen, joinScreen, gameScreen].forEach(screen => screen.classList.remove('active-screen'));
+    show.classList.add('active-screen');
+  }
+  
+  // --- Navigation Handlers ---
+  document.querySelector('.create-btn').onclick = () => showScreen(createScreen);
+  document.querySelector('.join-btn').onclick = () => showScreen(joinScreen);
+  [...document.querySelectorAll('.back-btn')].forEach(btn => btn.onclick = () => showScreen(mainMenu));
 
-// Firebase service instances and state
-let db, auth;
-let userId = null;
-let isAuthenticated = false;
-let unsubscribe = null; // Holds the onSnapshot listener function
-let roomId = '';
-let playerName = '';
-let isHost = false;
+  // --- Utility Functions ---
+  function renderRoomCode(code) {
+    if (currentRoomCode) {
+      currentRoomCode.innerHTML = `
+        <span class="font-mono font-bold">${code}</span>
+        <button id="copyRoomCodeBtn" class="copy-btn">Copy</button>
+      `;
+      // Use the pre-defined .copy-btn styles from rmcs.html
+      const copyBtn = document.getElementById('copyRoomCodeBtn');
+      if(copyBtn) {
+          copyBtn.onclick = () => {
+            // Check if navigator.clipboard is available before using it
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(code).then(() => {
+                // Show a simple message box (assuming a showMessage utility, but for now using alert)
+                alert('Copied!'); 
+              }).catch(err => {
+                console.error('Could not copy text: ', err);
+                alert('Failed to copy. Please manually copy the code.');
+              });
+            } else {
+                // Fallback for older browsers
+                const tempInput = document.createElement("input");
+                document.body.appendChild(tempInput);
+                tempInput.value = code;
+                tempInput.select();
+                document.execCommand("copy");
+                document.body.removeChild(tempInput);
+                alert('Copied (Legacy)!'); 
+            }
+          };
+      }
+    }
+  }
 
-// UI Elements
-const mainMenu = document.getElementById('mainMenu');
-const createScreen = document.getElementById('createScreen');
-const joinScreen = document.getElementById('joinScreen');
-const gameScreen = document.getElementById('gameScreen');
-const playersList = document.getElementById('playersList');
-const currentRoomCode = document.getElementById('currentRoomCode');
-const startGameBtn = document.getElementById('startGameBtn');
-const exitLobbyBtn = document.getElementById('exitLobbyBtn');
-const gameContent = document.getElementById('gameContent');
-const hostControlsContainer = document.getElementById('hostControlsContainer');
-const roundDisplay = document.getElementById('roundDisplay');
-const scoreList = document.getElementById('scoreList');
-const messageBox = document.getElementById('messageBox');
-const messageBoxTitle = document.getElementById('messageBoxTitle');
-const messageBoxText = document.getElementById('messageBoxBody'); // Corrected from messageBoxText to messageBoxBody based on HTML
-const messageBoxClose = document.getElementById('messageBoxClose');
+  function assignRoles(players) {
+    // Check if the number of players is exactly 4, otherwise the roles will be incomplete
+    if (players.length !== 4) return players.map(p => ({ ...p, role: 'Waiting' }));
+    
+    const roles = ['Raja', 'Mantri', 'Chor', 'Sipahi'];
+    // Shuffle the roles array
+    let shuffled = [...roles].sort(() => Math.random() - 0.5); 
+    
+    // Assign one unique role to each player
+    return players.map((p, i) => ({ ...p, role: shuffled[i] }));
+  }
 
-// Game Constants
-const ROLES = ['Raja', 'Mantri', 'Chor', 'Sipahi'];
-const POINTS = { Raja: 1000, Mantri: 500, Chor: 0, Sipahi_Correct: 250, Sipahi_Wrong: 0 };
+  function renderAvatarsTable(players, selfId) {
+    if (!gameTable) return;
+    // Clear previous avatars
+    [...gameTable.querySelectorAll('.avatar')].forEach(el => el.remove()); 
+    
+    const N = players.length;
+    if (N === 0) return;
+    
+    // Adjusted radius for better display on the fixed 300x300 .game-table
+    const radius = 100, cx = 150, cy = 150; 
+    const selfIndex = players.findIndex(p => p.id === selfId);
 
-/**
- * Utility function to show a custom modal message box.
- * @param {string} title 
- * @param {string} text 
- */
-function showMessageBox(title, text) {
-    messageBoxTitle.textContent = title;
-    messageBoxText.textContent = text;
-    messageBox.classList.remove('hidden');
-}
+    for (let i = 0; i < N; ++i) {
+      // Calculate index relative to self for 'self in front' view
+      let logicalIndex = (i - selfIndex + N) % N; 
+      // Start angle adjusted to place the first player (self) at the bottom (270 degrees)
+      let angle = Math.PI * 1.5 + (2 * Math.PI * logicalIndex) / N; 
+      
+      let x = cx + radius * Math.cos(angle);
+      let y = cy + radius * Math.sin(angle); // Switched from -sin to +sin for Y-down coordinates
 
-messageBoxClose.onclick = () => {
-    messageBox.classList.add('hidden');
-};
+      let avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      // Adjust positions to center the 60x60 avatar box
+      avatar.style.left = (x - 30) + 'px'; 
+      avatar.style.top = (y - 30) + 'px';
+      // Use a more descriptive icon
+      avatar.innerHTML = `<span class="text-3xl">${players[i].id === selfId ? 'You' : '👤'}</span>`; 
+      
+      let name = document.createElement('div');
+      name.className = 'avatar-name';
+      name.textContent = players[i].name + (players[i].id === selfId ? ' (You)' : '');
+      avatar.appendChild(name);
+      gameTable.appendChild(avatar);
+    }
+  }
+  
+  function renderPlayersList(players) {
+    // The HTML has no element with ID 'playersList', but the variable is declared, so keeping this for completeness if the user adds it.
+    if (playersList) 
+      playersList.innerHTML = players.map(p => `<li>${p.name}</li>`).join('');
+  }
+  
+  // Helper to show custom message box (as defined in rmcs.html)
+  function showMessage(title, body) {
+      const messageBox = document.getElementById('messageBox');
+      if (!messageBox) return alert(`${title}: ${body}`);
+      
+      document.getElementById('messageBoxTitle').textContent = title;
+      document.getElementById('messageBoxBody').textContent = body;
+      
+      messageBox.classList.remove('hidden');
+      document.getElementById('messageBoxClose').onclick = () => {
+          messageBox.classList.add('hidden');
+      };
+  }
 
-/**
- * Handles screen navigation.
- * @param {HTMLElement} show - The screen element to show.
- */
-function showScreen(show) {
-    [mainMenu, createScreen, joinScreen, gameScreen].forEach(screen => screen.classList.remove('active-screen'));
-    show.classList.add('active-screen');
-}
-
-/**
- * Utility to copy text to clipboard.
- * @param {string} text 
- */
-function copyToClipboard(text) {
-    const tempInput = document.createElement('input');
-    tempInput.value = text;
-    document.body.appendChild(tempInput);
-    tempInput.select();
-    try {
-        document.execCommand('copy');
-        showMessageBox("Copied!", `Room code ${text} copied to clipboard.`);
-    } catch (err) {
-        showMessageBox("Error", "Failed to copy text. Please copy manually.");
-    }
-    document.body.removeChild(tempInput);
-}
-
-/**
- * Generates a random 6-character room code.
- * @returns {string}
- */
-function generateRoomCode() {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
-
-/**
- * Gets the Firestore collection reference for rooms.
- * @returns {firebase.firestore.CollectionReference}
- */
-function getRoomCollection() {
-    return collection(db, `artifacts/${appId}/public/data/rmcs_rooms`);
-}
-
-/**
- * Renders the Room Code and Copy button.
- * @param {string} code 
- */
-function renderRoomCode(code) {
-    if (currentRoomCode) {
-        currentRoomCode.innerHTML = `
-            <span class="font-mono font-bold">${code}</span>
-            <button id="copyRoomCodeBtn" class="ml-3 px-3 py-1 bg-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-300 transition-colors text-base shadow-md">Copy</button>
-        `;
-        document.getElementById('copyRoomCodeBtn').onclick = () => copyToClipboard(code);
-    }
-}
-
-/**
- * Renders the score list in the lobby/game screen.
- * @param {Array} players 
- */
-function renderScoreboard(players) {
-    // Note: scoreList is not present in the HTML provided for this rendering logic.
-    // The HTML only contains the `gameScreen` structure, which includes the `game-table` for avatars,
-    // but no specific `scoreList` element. Assuming it should go into `gameContent` or an inner element if needed,
-    // but for now, this function is defined but won't run as intended with the current HTML structure.
-    if (!scoreList) return;
-    
-    // Sort players by score descending
-    const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
-
-    if (sortedPlayers.length === 0) {
-        scoreList.innerHTML = '<li class="text-center text-gray-500">No players in room.</li>';
-        return;
-    }
-
-    scoreList.innerHTML = sortedPlayers.map(p => `
-        <li class="flex justify-between items-center px-2 py-1 bg-white rounded-md shadow-sm border border-gray-100">
-            <span class="font-semibold text-gray-800">${p.name} ${p.isHost ? '(Host)' : ''}</span>
-            <span class="text-xl font-bold ${p.score > 0 ? 'text-green-600' : 'text-gray-500'}">${p.score}</span>
-        </li>
-    `).join('');
-}
-
-/**
- * Renders the list of players in the lobby.
- * @param {Array} players 
- */
-function renderPlayersList(players) {
-    // Note: playersList is not present in the HTML provided. It only contains a `game-table`.
-    // I'm skipping this logic for the current HTML structure to prevent errors,
-    // but leaving the function definition for completeness against the JS source code.
-    if (!playersList) return;
-    
-    if (players.length === 0) {
-        playersList.innerHTML = '<li class="text-gray-500 text-center">No players in room.</li>';
-        return;
-    }
-
-    playersList.innerHTML = players.map(p => `
-        <li class="px-3 py-2 bg-white rounded-lg shadow-md flex justify-between items-center border-l-4 ${p.isHost ? 'border-indigo-500' : 'border-gray-300'}">
-            <span class="font-medium text-gray-700">${p.name}</span>
-            <span class="text-xs font-semibold text-gray-500">${p.isHost ? 'HOST' : 'Player'}</span>
-        </li>
-    `).join('');
-}
-
-
-// --- LOBBY/GAME STATE HANDLER ---
-
-/**
- * The main listener function for the room state.
- * @param {string} code 
- */
-function listenToRoom(code) {
-    if (unsubscribe) {
-        unsubscribe(); // Detach previous listener
-    }
-
-    const roomRef = doc(getRoomCollection(), code);
-
-    unsubscribe = onSnapshot(roomRef, (docSnap) => {
-        if (!docSnap.exists()) {
-            showMessageBox("Room Closed", "The host has closed the room or the room no longer exists.");
-            exitLobby();
-            return;
-        }
-
-        const data = docSnap.data();
-        const players = data.players || [];
-        const selfPlayer = players.find(p => p.id === userId);
-
-        // Check if the current user is still in the room
-        if (!selfPlayer) {
-            showMessageBox("Kicked Out", "You have been removed from the room.");
-            exitLobby();
-            return;
-        }
-
-        roomId = code;
-        playerName = selfPlayer.name;
-        isHost = selfPlayer.isHost;
-
-        renderRoomCode(code);
-        renderScoreboard(players); // Will fail gracefully as scoreList is null
-        renderPlayersList(players); // Will fail gracefully as playersList is null
-
-        // Update UI based on game phase
-        if (data.phase === 'waiting') {
-            handleWaitingPhase(data);
-        } else if (data.phase === 'roleReveal') {
-            handleRoleRevealPhase(data, selfPlayer);
-        } else if (data.phase === 'sipahiGuessing') {
-            handleSipahiGuessingPhase(data, selfPlayer);
-        } else if (data.phase === 'roundResult') {
-            handleRoundResultPhase(data, selfPlayer);
-        } else if (data.phase === 'gameOver') {
-            handleGameOverPhase(data);
-        }
-    }, (error) => {
-        console.error("Error listening to room:", error);
-        showMessageBox("Connection Error", "There was an issue connecting to the game. Please try again.");
-        exitLobby();
-    });
-}
-
-// --- PHASE HANDLERS ---
-
-/**
- * Handles the 'waiting' (lobby) phase.
- * @param {object} data 
- */
-function handleWaitingPhase(data) {
-    if (roundDisplay) roundDisplay.classList.add('hidden');
-    if (gameContent) gameContent.innerHTML = `
-        <div class="text-gray-500 text-center p-4">
-            Waiting for players to join... You need at least 4 players to start!
-        </div>
-    `;
-
-    // Host Controls
-    if (isHost) {
-        if (hostControlsContainer) hostControlsContainer.innerHTML = '';
-        if (startGameBtn) {
-            startGameBtn.disabled = data.players.length < 4;
-            startGameBtn.textContent = data.players.length < 4 ? `Need ${4 - data.players.length} More Player(s)` : 'Start Game';
+  // --- Room Creation ---
+  document.getElementById('createRoomFinal').onclick = async () => {
+    playerName = document.getElementById('createPlayerName').value.trim();
+    let customRoomCode = document.getElementById('createRoomCode').value.trim().toUpperCase();
+    document.getElementById('createRoomError').innerText = '';
+    
+    // Validation
+    if (!playerName) {
+      document.getElementById('createRoomError').innerText = "Enter your name."; return;
+    }
+    if (customRoomCode && (customRoomCode.length < 4 || !/^[A-Z0-9]{4,8}$/.test(customRoomCode))) {
+      document.getElementById('createRoomError').innerText = "Room code must be 4-8 uppercase letters or numbers."; return;
+    }
+    
+    // Generate code if not provided
+    if (!customRoomCode) customRoomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    const ref = db.collection('rmcs_rooms').doc(customRoomCode);
+    
+    try {
+      // Check if room code already exists
+      const docSnapshot = await ref.get();
+      if (docSnapshot.exists) {
+        document.getElementById('createRoomError').innerText = "Room code already exists. Try a new code!"; return;
+      }
+      
+      // Ensure user is authenticated before creating a room
+      firebase.auth().onAuthStateChanged(async user => {
+        // Assuming a user is anonymously logged in via js/firebase-config.js.
+        // If not, a proper login flow is needed here.
+        if (!user) {
+          // Attempt anonymous login if not logged in
+          try {
+            const anonUser = await firebase.auth().signInAnonymously();
+            user = anonUser.user;
+          } catch(e) {
+             document.getElementById('createRoomError').innerText = "Authentication error: " + e.message; 
+             return; 
+          }
         }
-    } else {
-        if (hostControlsContainer) hostControlsContainer.innerHTML = '<p class="text-center text-sm text-gray-500 mt-2">Waiting for the Host to start the game.</p>';
-        if (startGameBtn) startGameBtn.classList.add('hidden');
-    }
-    
-    if (startGameBtn) startGameBtn.classList.remove('hidden');
-}
+        
+        await ref.set({
+          host: user.uid, // Store host ID instead of name for better logic
+          players: [{ name: playerName, id: user.uid }],
+          phase: 'lobby',
+          created: firebase.firestore.FieldValue.serverTimestamp() // Use server timestamp
+        });
+        
+        roomId = customRoomCode;
+        listenToRoom(roomId);
+        showScreen(gameScreen);
+      });
+      
+    } catch (e) {
+      console.error("Error creating room:", e);
+      document.getElementById('createRoomError').innerText = "An error occurred: " + e.message;
+    }
+  };
 
-/**
- * Handles the 'roleReveal' phase.
- * @param {object} data 
- * @param {object} selfPlayer 
- */
-function handleRoleRevealPhase(data, selfPlayer) {
-    if (roundDisplay) {
-        roundDisplay.classList.remove('hidden');
-        roundDisplay.innerHTML = `<p class="text-2xl font-bold text-gray-800">Round ${data.round}</p>`;
+  // --- Join Room ---
+  document.getElementById('joinRoomFinal').onclick = async () => {
+    playerName = document.getElementById('joinPlayerName').value.trim();
+    const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
+    document.getElementById('joinRoomError').innerText = '';
+    
+    if (!playerName || !code) {
+      document.getElementById('joinRoomError').innerText = "Enter both a name and room code."; return;
+    }
+    
+    const ref = db.collection('rmcs_rooms').doc(code);
+    
+    try {
+      const doc = await ref.get();
+      if (!doc.exists) {
+        document.getElementById('joinRoomError').innerText = "Room not found!"; return;
+      }
+      
+      const data = doc.data();
+      if (data.phase !== 'lobby') {
+        document.getElementById('joinRoomError').innerText = "The game has already started in this room."; return;
+      }
+      if (data.players.length >= 4) {
+        document.getElementById('joinRoomError').innerText = "Room is full (max 4 players)."; return;
+      }
+
+      firebase.auth().onAuthStateChanged(async user => {
+        if (!user) {
+          // Attempt anonymous login if not logged in
+          try {
+            const anonUser = await firebase.auth().signInAnonymously();
+            user = anonUser.user;
+          } catch(e) {
+             document.getElementById('joinRoomError').innerText = "Authentication error: " + e.message; 
+             return; 
+          }
+        }
+        
+        // Prevent joining if player name is already in use (basic check)
+        if (data.players.some(p => p.name === playerName)) {
+             document.getElementById('joinRoomError').innerText = "A player with this name is already in the room. Choose another name."; 
+             return;
+        }
+
+        // Check if user is already in the room (e.g., rejoining after refresh)
+        if (!data.players.some(p => p.id === user.uid)) {
+          // Add the new player
+          await ref.update({
+            players: firebase.firestore.FieldValue.arrayUnion({ name: playerName, id: user.uid })
+          });
+        } else {
+             // Update the player's name if they are rejoining with a new one
+             const updatedPlayers = data.players.map(p => 
+                 p.id === user.uid ? { name: playerName, id: user.uid } : p
+             );
+             await ref.update({ players: updatedPlayers });
+        }
+        
+        roomId = code;
+        // Update the global playerName for the current session
+        playerName = playerName; 
+        listenToRoom(roomId);
+        showScreen(gameScreen);
+      });
+      
+    } catch (e) {
+       console.error("Error joining room:", e);
+       document.getElementById('joinRoomError').innerText = "An error occurred: " + e.message;
+    }
+  };
+
+  // --- Listen and Draw Lobby/Game Screen ---
+  function listenToRoom(roomCode) {
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    
+    const roomRef = db.collection('rmcs_rooms').doc(roomCode);
+    
+    unsubscribe = roomRef
+      .onSnapshot(doc => {
+        const data = doc.data();
+        if (!data) {
+           showMessage("Error", "Room not found or deleted.");
+           showScreen(mainMenu);
+           return;
+        } 
+
+        const players = data.players || [];
+        const selfId = firebase.auth().currentUser?.uid;
+        
+        if (data.phase === "completed") {
+           // Handle end game scenario
+           showMessage("Game Ended", "The room host has ended the game.");
+           showScreen(mainMenu);
+           return;
+        }
+
+        renderRoomCode(roomCode);
+
+        // Check if current user is the host (the player with the host ID)
+        let isHost = players.length > 0 && selfId === data.host;
+        
+        // --- Lobby Phase ---
+        if (data.phase === "lobby") {
+          // Clear any non-lobby game UI
+          document.getElementById('gameContent')?.classList?.remove('hidden'); 
+          
+          // Render lobby elements
+          renderPlayersList(players); // This is likely vestigial since the list is not in HTML
+          renderAvatarsTable(players, selfId); 
+          
+          // Host controls
+          if (startGameBtn) {
+            startGameBtn.style.display = isHost ? 'block' : 'none'; // Only show for host
+            // Game can only start with exactly 4 players
+            startGameBtn.disabled = !(isHost && players.length === 4);
+            startGameBtn.textContent = (players.length === 4) ? 'Start Game' : `Waiting for ${4 - players.length} player(s)`;
+            
+            startGameBtn.onclick = async () => {
+              if (!(isHost && players.length === 4)) return;
+              
+              const roles = assignRoles(players);
+              
+              await roomRef.update({
+                phase: 'reveal',
+                playerRoles: roles,
+                // The 'guess' field is reset at the end of the round, so no need to reset here
+                revealed: []
+              });
+            };
+          }
+
+        // --- Reveal Phase ---
+        } else if (data.phase === 'reveal') {
+          // Hide lobby-specific content
+          document.getElementById('gameContent')?.classList?.add('hidden');
+          if (startGameBtn) startGameBtn.style.display = 'none';
+
+          showRoleRevealScreen(players, selfId, data.playerRoles, data.revealed || []);
+        
+        // --- Guess Phase ---
+        } else if (data.phase === 'guess') {
+          document.getElementById('gameContent')?.classList?.add('hidden');
+          showSipahiGuessUI(data.playerRoles, selfId, roomCode);
+        
+        // --- Result Phase ---
+        } else if (data.phase === "roundResult") {
+          document.getElementById('gameContent')?.classList?.add('hidden');
+          showRoundResult(data, selfId, roomCode, isHost); // Pass isHost to control Next Round button
+        }
+      });
+  }
+
+  // --- Role Reveal Flow ---
+  function showRoleRevealScreen(players, selfId, playerRoles, revealed) {
+    if (gameTable) gameTable.innerHTML = '';
+    
+    // Find my role
+    const p = (playerRoles || []).find(p => p.id === selfId);
+    if (!p) return; // Should not happen if a player is in the room
+    
+    const isRajaSipahi = p && (p.role === 'Raja' || p.role === 'Sipahi');
+    // The Sipahi only needs to reveal if the Raja hasn't already done so to trigger the guess phase
+    const alreadyRevealed = (revealed || []).some(r => r.id === selfId);
+    const container = gameTable;
+    if (!container) return;
+    
+    // Check if both Raja and Sipahi have revealed their roles
+    const rajaRevealed = (revealed || []).some(r => r.role === 'Raja');
+    const sipahiRevealed = (revealed || []).some(r => r.role === 'Sipahi');
+    
+    // Logic to move to the 'guess' phase automatically
+    if (rajaRevealed && sipahiRevealed) {
+        db.collection('rmcs_rooms').doc(roomId).update({
+            phase: 'guess',
+            // Reset revealed array for the next round's reveal
+            revealed: [] 
+        });
+        return; 
     }
 
-    if (startGameBtn) startGameBtn.classList.add('hidden');
-    if (hostControlsContainer) hostControlsContainer.innerHTML = ''; // Hide host controls for now
+    // Prepare HTML for revealed roles
+    let revealedRoles = playerRoles.filter(pr => revealed.some(r => r.id === pr.id));
+    let revealedHtml = revealedRoles.map(r => `
+      <div class="text-center">
+        <div class="text-5xl">${r.role === 'Raja' ? "👑" : r.role === 'Sipahi' ? "🛡️" : ""}</div>
+        <div class="avatar-name mt-1">${r.name}</div>
+      </div>
+    `).join('');
+    
+    // Find the player's own role (for display)
+    const selfRole = p.role;
+    const roleEmoji = selfRole === 'Raja' ? '👑' : selfRole === 'Mantri' ? '🧠' : selfRole === 'Chor' ? '🔪' : '🛡️';
 
-    const role = selfPlayer.role;
-    
-    // Determine the text based on the role
-    let roleText = '';
-    let actionText = '';
-    
-    if (role === 'Raja') {
-        roleText = 'Raja (King)';
-        actionText = 'You must find the Mantri. You have 1000 points.';
-    } else if (role === 'Mantri') {
-        roleText = 'Mantri (Minister)';
-        actionText = 'You must identify the Chor (thief). You have 500 points.';
-    } else if (role === 'Sipahi') {
-        roleText = 'Sipahi (Soldier)';
-        actionText = 'You will be asked to guess the Chor. Your points depend on your guess!';
-    } else if (role === 'Chor') {
-        roleText = 'Chor (Thief)';
-        actionText = 'Try not to get caught! You have 0 points.';
-    }
+    // Update the game table content
+    container.innerHTML = `
+      <div class="flex flex-col items-center mt-8">
+        <div class="role-card paper-unfold bg-white shadow-lg p-6 rounded-2xl text-2xl text-center">
+          <p>Your Role: <b class="text-indigo-700">${selfRole} ${roleEmoji}</b></p>
+          ${isRajaSipahi && !alreadyRevealed ? 
+            '<button id="revealBtn" class="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition-colors">Reveal Role</button>' 
+            : ''}
+        </div>
+        ${(!isRajaSipahi) ? 
+          `<div class="mt-4 bg-gray-200 text-gray-700 text-md p-3 rounded-xl text-center">
+            Your role is secret (${selfRole}).<br>Wait for Raja (👑) and Sipahi (🛡️) to reveal.
+           </div>` 
+          : (alreadyRevealed ? '<div class="mt-4 text-green-700 font-bold">Role revealed! Waiting for all reveals...</div>' : '')}
+           
+        ${revealedHtml ? `
+            <h4 class="text-xl font-semibold mt-6 text-gray-800">Revealed:</h4>
+            <div class="flex gap-6 justify-center p-6 bg-yellow-50 rounded-xl shadow-inner mt-2">${revealedHtml}</div>
+        ` : '<div class="mt-6 text-gray-500">No roles have been revealed yet.</div>'}
+      </div>
+    `;
+    
+    // Add event listener for the reveal button
+    const revealBtn = document.getElementById('revealBtn');
+    if (isRajaSipahi && !alreadyRevealed && revealBtn) {
+      revealBtn.onclick = () => {
+        db.collection('rmcs_rooms').doc(roomId).update({
+          revealed: firebase.firestore.FieldValue.arrayUnion({id: selfId, role: p.role, name: p.name})
+        });
+      };
+    }
+  }
 
-    if (gameContent) gameContent.innerHTML = `
-        <div class="role-card role-${role}">
-            <h2 class="text-4xl font-extrabold mb-4">${roleText}</h2>
-            <p class="text-lg mb-6">${actionText}</p>
-            <p class="text-sm text-gray-600">The rest of the game begins once everyone has seen their role.</p>
-        </div>
-    `;
+  // --- Sipahi Guess UI ---
+  function showSipahiGuessUI(playerRoles, selfId, roomCode) {
+    if (gameTable) gameTable.innerHTML = '';
+    
+    const p = (playerRoles || []).find(p => p.id === selfId);
+    const container = gameTable;
+    if (!container) return; 
 
-    // Automatically transition to the next phase after a delay
-    // This is a simple client-side timeout, but host should manage the transition
-    if (isHost) {
-        setTimeout(() => {
-            if (data.phase === 'roleReveal') {
-                updateDoc(doc(getRoomCollection(), roomId), {
-                    phase: 'sipahiGuessing'
-                });
-            }
-        }, 5000); // 5 second delay to read the role
-    }
-}
+    // Find the Mantri and Chor for the Sipahi to guess
+    const mantri = playerRoles.find(pr => pr.role === 'Mantri');
+    const chor = playerRoles.find(pr => pr.role === 'Chor');
 
-/**
- * Handles the 'sipahiGuessing' phase.
- * @param {object} data 
- * @param {object} selfPlayer 
- */
-function handleSipahiGuessingPhase(data, selfPlayer) {
-    const role = selfPlayer.role;
-    if (startGameBtn) startGameBtn.classList.add('hidden');
-    
-    // Find the Sipahi player
-    const sipahiPlayer = data.players.find(p => p.role === 'Sipahi');
-    const chorPlayer = data.players.find(p => p.role === 'Chor');
+    // Create a list of targets (Mantri and Chor)
+    let targets = [];
+    if (mantri) targets.push(mantri);
+    if (chor) targets.push(chor);
+    targets = targets.sort(() => Math.random() - 0.5); // Shuffle order on the UI
 
-    if (!sipahiPlayer || !chorPlayer) {
-        console.error("Sipahi or Chor not found. Game state error.");
-        return;
-    }
+    let timer = 90, timerId;
+    
+    // Only the Sipahi should see the full guessing UI
+    if (!p || p.role !== 'Sipahi') {
+         container.innerHTML = `
+           <div class="text-center mt-12 text-xl font-semibold text-gray-600">
+              The Sipahi (🛡️) is currently making their guess. Please wait.
+           </div>
+         `;
+         return;
+    }
+    
+    // Sipahi UI logic
+    function render() {
+      container.innerHTML = `
+        <div class="rounded-2xl shadow-2xl p-6 flex flex-col items-center bg-white max-w-xs mx-auto mt-6 animate-fade-in">
+          <h3 class="mb-2 text-2xl font-bold text-blue-700">Sipahi (🛡️): Guess the Chor!</h3>
+          <div id="timer" class="mb-4 text-xl font-mono text-red-700">Time Left: ${timerFormat(timer)}</div>
+          <p class="text-sm text-gray-600 mb-4">Choose one player:</p>
+          <div class="flex flex-col gap-3 mb-2 w-full">
+            ${targets.map(t => `<button class="guess-btn bg-blue-200 hover:bg-blue-400 rounded-xl px-5 py-3 text-lg font-semibold transition-all" data-id="${t.id}">${t.name}</button>`).join('')}
+          </div>
+          <div id="guessResult" class="mt-2 font-bold text-green-700"></div>
+        </div>
+      `;
+      
+      // Add event listeners to guess buttons
+      targets.forEach(t => {
+        const button = container.querySelector(`button[data-id="${t.id}"]`);
+        if(button) {
+            button.onclick = async () => {
+              // Disable all buttons immediately after a guess
+              container.querySelectorAll('.guess-btn').forEach(btn => btn.disabled = true);
+              
+              let isChor = t.role === 'Chor';
+              clearInterval(timerId); // Stop the timer
+              
+              // Move to the result phase
+              db.collection('rmcs_rooms').doc(roomCode).update({
+                phase: 'roundResult',
+                guess: { sipahi: p.name, guessed: t.name, correct: isChor }
+              });
+            };
+        }
+      });
+    }
+    
+    function timerFormat(t) {
+      const m = String(Math.floor(t / 60)).padStart(2, "0");
+      const s = String(t % 60).padStart(2, "0");
+      return `${m}:${s}`;
+    }
+    
+    render();
+    
+    // Start the timer
+    timerId = setInterval(() => {
+      timer--;
+      const timerEl = container.querySelector('#timer');
+      if (timerEl) timerEl.textContent = `Time Left: ${timerFormat(timer)}`;
+      
+      if (timer <= 0) {
+        clearInterval(timerId);
+        // Time's up, automatic wrong guess (guessed: null)
+        db.collection('rmcs_rooms').doc(roomCode).update({
+          phase: 'roundResult',
+          guess: { sipahi: p.name, guessed: null, correct: false }
+        });
+      }
+    }, 1000);
+  }
 
-    // const nonSipahiPlayers = data.players.filter(p => p.role !== 'Sipahi' && p.id !== userId);
-    
-    // All players see the Sipahi is guessing, except the Sipahi himself.
-    if (gameContent) gameContent.innerHTML = `
-        <div class="text-center p-4">
-            <h3 class="text-2xl font-bold mb-4 text-gray-800">Sipahi's Guess</h3>
-            <p class="text-gray-600">The ${sipahiPlayer.name} (Sipahi) is currently guessing who the Chor is...</p>
-            <div class="mt-8">
-                <div class="h-4 w-full bg-gray-200 rounded-full overflow-hidden">
-                    <div class="bg-indigo-500 h-4 rounded-full w-1/3 pulse-animation"></div>
-                </div>
-            </div>
-        </div>
-    `;
+  // --- Round Result Animation & Next Button ---
+  function showRoundResult(data, selfId, roomCode, isHost) {
+    if (!gameTable) return;
+    
+    const res = data.guess;
+    const playerRoles = data.playerRoles;
+    
+    let isCorrect = res && res.correct;
+    
+    let message, emoji;
+    if (!res || res.guessed === null) {
+        message = "Time ran out! The Chor escapes!";
+        emoji = "⏰";
+    } else if (isCorrect) {
+        message = `Success! The Sipahi (${res.sipahi}) caught the Chor!`;
+        emoji = "🎉";
+    } else {
+        message = `Wrong Guess! The Sipahi (${res.sipahi}) accused ${res.guessed}, but the Chor escapes!`;
+        emoji = "😥";
+    }
+    
+    // Find who the Chor was
+    const chor = playerRoles.find(p => p.role === 'Chor');
+    const mantri = playerRoles.find(p => p.role === 'Mantri');
+    const raja = playerRoles.find(p => p.role === 'Raja');
+    const sipahi = playerRoles.find(p => p.role === 'Sipahi');
+    
+    // Display score and full roles
+    let scoreRajaMantri = isCorrect ? 1000 : 0; // Raja/Mantri get 1000 points if correct
+    let scoreChor = isCorrect ? 0 : 1000; // Chor gets 1000 points if wrong/no guess
+    let scoreSipahi = isCorrect ? 1000 : 0; // Sipahi points based on guess
 
-    // If the current user is the Sipahi, show the guessing UI
-    if (role === 'Sipahi' && selfPlayer.id === sipahiPlayer.id) {
-        
-        // Players to choose from (everyone *except* the Sipahi)
-        const targets = data.players.filter(p => p.role !== 'Sipahi');
+    let resultsHtml = `
+      <div class="text-left w-full max-w-sm mt-4 p-4 bg-gray-100 rounded-xl shadow-inner">
+        <h4 class="text-lg font-bold mb-2 border-b pb-1">Role Summary</h4>
+        <p>👑 Raja: <b>${raja.name}</b></p>
+        <p>🧠 Mantri: <b>${mantri.name}</b></p>
+        <p>🛡️ Sipahi: <b>${sipahi.name}</b></p>
+        <p>🔪 Chor: <b class="text-red-600">${chor.name}</b></p>
+        <h4 class="text-lg font-bold mt-3 mb-2 border-b pb-1">Round Points</h4>
+        <p>Raja/Mantri/Sipahi: <b class="text-green-600">${scoreRajaMantri} points</b></p>
+        <p>Chor: <b class="${scoreChor > 0 ? 'text-red-600' : 'text-green-600'}">${scoreChor} points</b></p>
+      </div>
+    `;
 
-        if (gameContent) gameContent.innerHTML = `
-            <div class="text-center p-4">
-                <h3 class="text-2xl font-bold mb-4 text-gray-800">Who is the Chor?</h3>
-                <p class="text-lg text-gray-600 mb-6">You must correctly identify the Chor to earn 250 points.</p>
-                <div class="space-y-3 w-full">
-                    ${targets.map(p => `
-                        <button class="guess-btn confirm-btn w-full text-left flex justify-between items-center" data-chor-id="${p.id}">
-                            <span>Guess: ${p.name}</span>
-                            <span class="text-2xl ml-2">🕵️</span>
-                        </button>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-        
-        // Attach event listeners to guess buttons
-        document.querySelectorAll('.guess-btn').forEach(button => {
-            button.onclick = () => handleSipahiGuess(button.dataset.chorId, chorPlayer.id, data);
-        });
-    }
+    gameTable.innerHTML = `
+      <div class="flex flex-col justify-center items-center min-h-[200px] animate-fade-in">
+        <div class="text-8xl mb-6 animate-pulse">${emoji}</div>
+        <div class="rounded-2xl shadow-xl ${isCorrect ? 'bg-green-100 text-green-900' : 'bg-red-100 text-red-900'} py-4 px-8 mb-6 text-2xl font-bold text-center">${message}</div>
+        ${resultsHtml}
+        ${isHost ? '<button class="next-round-btn px-8 py-3 rounded-xl bg-indigo-600 text-white text-xl shadow-lg hover:bg-indigo-700 mt-5">Start New Round</button>' : 
+                   '<div class="mt-5 text-gray-500 font-semibold">Waiting for host to start the next round...</div>'}
+      </div>
+    `;
+    
+    // Host-only button to reset the room state for a new round
+    if (isHost) {
+      const nextRoundBtn = gameTable.querySelector('.next-round-btn');
+      if (nextRoundBtn) {
+        nextRoundBtn.onclick = async () => {
+          const ref = db.collection('rmcs_rooms').doc(roomCode);
+          // In a full game, you'd calculate and update persistent scores here.
+          // For simplicity, this simply resets the round state.
+          await ref.update({
+            phase: 'lobby',
+            playerRoles: [],
+            revealed: [],
+            guess: null,
+          });
+        };
+      }
+    }
+  }
 
-    if (hostControlsContainer) hostControlsContainer.innerHTML = ''; // No host controls during this phase
-}
-
-/**
- * Handles the Sipahi's guess and transitions to the result phase.
- * @param {string} guessedId - The ID of the player the Sipahi guessed.
- * @param {string} chorId - The actual ID of the Chor.
- * @param {object} data - The current room data.
- */
-async function handleSipahiGuess(guessedId, chorId, data) {
-    const isCorrect = guessedId === chorId;
-    const sipahiPlayer = data.players.find(p => p.role === 'Sipahi');
-    
-    // Update the room state with the guess result
-    const guessPayload = {
-        sipahiId: sipahiPlayer.id,
-        guessedId: guessedId,
-        chorId: chorId,
-        correct: isCorrect
-    };
-
-    try {
-        await updateDoc(doc(getRoomCollection(), roomId), {
-            phase: 'roundResult',
-            guess: guessPayload
-        });
-    } catch (e) {
-        console.error("Error updating guess result:", e);
-        showMessageBox("Error", "Could not record the guess. Please check your connection.");
-    }
-}
-
-/**
- * Handles the 'roundResult' phase: displays results and updates scores.
- * @param {object} data 
- * @param {object} selfPlayer 
- */
-function handleRoundResultPhase(data, selfPlayer) {
-    const res = data.guess;
-    if (!res) return; // Should not happen
-
-    if (startGameBtn) startGameBtn.classList.add('hidden');
-    
-    const isCorrect = res.correct;
-    const sipahiName = data.players.find(p => p.id === res.sipahiId)?.name || 'Sipahi';
-    const chorName = data.players.find(p => p.id === res.chorId)?.name || 'Chor';
-    const guessedName = data.players.find(p => p.id === res.guessedId)?.name || 'Guessed Player';
-    
-    let message = isCorrect ? "SUCCESS! Sipahi found the Chor!" : "FAILURE! Wrong Guess, the Chor escapes!";
-    let emoji = isCorrect ? "🎉" : "😔";
-
-    if (gameContent) gameContent.innerHTML = `
-        <div class="flex flex-col justify-center items-center min-h-[200px] animate-fadeIn">
-            <div class="text-6xl mb-6">${emoji}</div>
-            <div class="rounded-xl shadow-lg ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} py-4 px-8 mb-6 text-xl font-bold text-center">
-                ${message}
-            </div>
-            <p class="text-lg font-semibold text-gray-700">Sipahi (${sipahiName}) guessed: <span class="${isCorrect ? 'text-green-600' : 'text-red-600'}">${guessedName}</span></p>
-            <p class="text-lg font-semibold text-gray-700">The Chor was: <span class="text-red-800">${chorName}</span></p>
-            <p class="mt-4 text-xl font-extrabold text-indigo-700">Scores Updated!</p>
-        </div>
-    `;
-
-    // Host Controls: Button to start the next round
-    if (isHost) {
-        if (hostControlsContainer) hostControlsContainer.innerHTML = `
-            <button id="nextRoundBtn" class="confirm-btn w-full">Start Next Round</button>
-            <button id="endGameBtn" class="back-btn mt-3 w-full">End Game</button>
-        `;
-        if (document.getElementById('nextRoundBtn')) document.getElementById('nextRoundBtn').onclick = () => startNextRound(data);
-        if (document.getElementById('endGameBtn')) document.getElementById('endGameBtn').onclick = () => endGame(data);
-    } else {
-        if (hostControlsContainer) hostControlsContainer.innerHTML = '<p class="text-center text-sm text-gray-500 mt-2">Waiting for the Host to start the next round.</p>';
-    }
-}
-
-/**
- * Handles the 'gameOver' phase.
- * @param {object} data 
- */
-function handleGameOverPhase(data) {
-    if (startGameBtn) startGameBtn.classList.add('hidden');
-    if (hostControlsContainer) hostControlsContainer.innerHTML = '';
-    if (roundDisplay) roundDisplay.classList.add('hidden');
-
-    const sortedPlayers = [...data.players].sort((a, b) => b.score - a.score);
-    const winner = sortedPlayers[0];
-
-    if (gameContent) gameContent.innerHTML = `
-        <div class="text-center p-4">
-            <h3 class="text-4xl font-extrabold text-indigo-600 mb-6">🏆 Game Over! 🏆</h3>
-            <p class="text-2xl font-bold mb-4 text-gray-800">Winner: ${winner.name} (${winner.score} points)</p>
-            <p class="text-gray-600 mb-6">Final Scores:</p>
-            <ul class="space-y-2 mb-6 p-3 bg-gray-50 rounded-lg border w-full">
-                ${sortedPlayers.map(p => `
-                    <li class="flex justify-between font-semibold text-gray-700">
-                        <span>${p.name}</span>
-                        <span>${p.score}</span>
-                    </li>
-                `).join('')}
-            </ul>
-        </div>
-    `;
-    
-    // Add a button to reset to the main menu
-    if (hostControlsContainer) hostControlsContainer.innerHTML = `
-        <button id="backToMenuBtn" class="confirm-btn w-full mt-4">Back to Main Menu</button>
-    `;
-    if (document.getElementById('backToMenuBtn')) document.getElementById('backToMenuBtn').onclick = () => exitLobby(true);
-}
-
-// --- GAME ACTIONS ---
-
-/**
- * Starts the game from the lobby by assigning initial roles.
- */
-async function startGame() {
-    if (!isHost || !userId) return showMessageBox("Error", "Only the host can start the game.");
-
-    const roomRef = doc(getRoomCollection(), roomId);
-
-    await runTransaction(db, async (transaction) => {
-        const roomDoc = await transaction.get(roomRef);
-        if (!roomDoc.exists()) {
-            throw "Room does not exist!";
-        }
-        
-        const data = roomDoc.data();
-        let players = data.players || [];
-        
-        if (players.length < 4) {
-            throw "Cannot start. Need at least 4 players.";
-        }
-        
-        // 1. Reset/Initialize scores if needed
-        players = players.map(p => ({
-            ...p,
-            score: p.score || 0, // Initialize score if not present
-            lastRole: null,
-            role: null,
-        }));
-
-        // 2. Assign initial roles
-        const shuffledRoles = ROLES.sort(() => 0.5 - Math.random());
-        const shuffledPlayers = players.sort(() => 0.5 - Math.random());
-        
-        for (let i = 0; i < shuffledPlayers.length; i++) {
-            shuffledPlayers[i].role = shuffledRoles[i % ROLES.length];
-        }
-
-        transaction.update(roomRef, {
-            phase: 'roleReveal',
-            round: 1,
-            players: shuffledPlayers,
-            lastUpdated: serverTimestamp(),
-            // Clear previous guess data
-            guess: null
-        });
-
-    }).catch(e => {
-        console.error("Transaction failed (startGame):", e);
-        showMessageBox("Game Error", `Could not start the game: ${e}`);
-    });
-}
-
-/**
- * Starts the next round, rotating roles and updating scores.
- * @param {object} data - Current room data.
- */
-async function startNextRound(data) {
-    if (!isHost || !userId) return showMessageBox("Error", "Only the host can start the next round.");
-
-    const roomRef = doc(getRoomCollection(), roomId);
-
-    await runTransaction(db, async (transaction) => {
-        const roomDoc = await transaction.get(roomRef);
-        if (!roomDoc.exists()) throw "Room does not exist!";
-        
-        const currentData = roomDoc.data();
-        let players = currentData.players || [];
-        
-        // --- 1. Calculate Scores from previous round ---
-        const guess = currentData.guess;
-        const isCorrect = guess?.correct;
-
-        players = players.map(p => {
-            let points = p.score;
-            let currentRole = p.role;
-            
-            // Apply points based on the role and round result
-            if (currentRole === 'Raja') {
-                points += POINTS.Raja;
-            } else if (currentRole === 'Mantri') {
-                points += POINTS.Mantri;
-            } else if (currentRole === 'Sipahi') {
-                points += isCorrect ? POINTS.Sipahi_Correct : POINTS.Sipahi_Wrong;
-            }
-            // Chor gets 0 points regardless, so no change
-            
-            return {
-                ...p,
-                score: points,
-                lastRole: currentRole,
-                role: null, // Clear role for the new round
-            };
-        });
-        
-        // --- 2. Assign new roles (Rotation) ---
-        const previousRoles = players.map(p => p.lastRole);
-        const shuffledPlayers = players.sort(() => 0.5 - Math.random());
-        
-        // Assign roles, making sure no one gets the same role twice in a row if possible (simple shuffle is enough)
-        const shuffledRoles = ROLES.sort(() => 0.5 - Math.random());
-        
-        for (let i = 0; i < shuffledPlayers.length; i++) {
-            shuffledPlayers[i].role = shuffledRoles[i % ROLES.length];
-        }
-
-        // --- 3. Update Firestore ---
-        transaction.update(roomRef, {
-            phase: 'roleReveal',
-            round: currentData.round + 1,
-            players: shuffledPlayers,
-            lastUpdated: serverTimestamp(),
-            guess: null // Clear previous guess
-        });
-
-    }).catch(e => {
-        console.error("Transaction failed (startNextRound):", e);
-        showMessageBox("Game Error", `Could not start the next round: ${e}`);
-    });
-}
-
-/**
- * Ends the game and transitions to the game over screen.
- * @param {object} data - Current room data.
- */
-async function endGame(data) {
-    if (!isHost || !userId) return showMessageBox("Error", "Only the host can end the game.");
-    
-    // Final score calculation is handled in startNextRound, so just transition to 'gameOver'
-    try {
-        await updateDoc(doc(getRoomCollection(), roomId), {
-            phase: 'gameOver',
-            lastUpdated: serverTimestamp()
-        });
-    } catch (e) {
-        console.error("Error ending game:", e);
-        showMessageBox("Error", "Could not end the game.");
-    }
-}
-
-/**
- * Creates a new game room.
- */
-async function createRoom() {
-    if (!isAuthenticated) return showMessageBox("Auth Error", "Authentication not ready. Please wait a moment.");
-    
-    const createPlayerName = document.getElementById('createPlayerName');
-    const createRoomError = document.getElementById('createRoomError');
-
-    playerName = createPlayerName.value.trim();
-    if (!playerName) return createRoomError.textContent = "Please enter your name.";
-    createRoomError.textContent = "";
-    
-    const newRoomCode = generateRoomCode();
-    const roomRef = doc(getRoomCollection(), newRoomCode);
-
-    const initialPlayer = { 
-        id: userId, 
-        name: playerName, 
-        isHost: true, 
-        score: 0,
-        role: null // Current role
-    };
-
-    try {
-        // Use setDoc for room creation with a custom ID
-        await setDoc(roomRef, {
-            hostId: userId,
-            roomCode: newRoomCode,
-            phase: 'waiting', // waiting, roleReveal, sipahiGuessing, roundResult, gameOver
-            round: 0,
-            players: [initialPlayer],
-            createdAt: serverTimestamp(),
-            lastUpdated: serverTimestamp(),
-        });
-
-        roomId = newRoomCode;
-        isHost = true;
-        showScreen(gameScreen);
-        listenToRoom(newRoomCode);
-
-    } catch (e) {
-        console.error("Error creating room:", e);
-        createRoomError.textContent = `Failed to create room: ${e.message || 'Server error'}.`;
-    }
-}
-
-/**
- * Joins an existing game room.
- */
-async function joinRoom() {
-    if (!isAuthenticated) return showMessageBox("Auth Error", "Authentication not ready. Please wait a moment.");
-    
-    const joinPlayerName = document.getElementById('joinPlayerName');
-    const joinRoomCode = document.getElementById('joinRoomCode');
-    const joinRoomError = document.getElementById('joinRoomError');
-
-    playerName = joinPlayerName.value.trim();
-    const code = joinRoomCode.value.trim().toUpperCase();
-
-    if (!playerName || !code) {
-        return joinRoomError.textContent = "Enter your name and the room code.";
-    }
-    joinRoomError.textContent = "";
-    
-    const roomRef = doc(getRoomCollection(), code);
-    
-    try {
-        // getDoc needs to be imported, assuming it is from the previous import list
-        const roomDoc = await getDoc(roomRef); 
-        if (!roomDoc.exists()) {
-            return joinRoomError.textContent = "Room not found. Check the code.";
-        }
-
-        const data = roomDoc.data();
-        let players = data.players || [];
-
-        // Prevent joining if player already exists by ID
-        if (players.some(p => p.id === userId)) {
-             // If already in the room, just re-join
-             console.log("Player already in room. Re-joining.");
-        } else {
-            // Check if game is already active
-            if (data.phase !== 'waiting') {
-                return joinRoomError.textContent = "Game is already in progress. Cannot join now.";
-            }
-            
-            // Add new player to the list
-            const newPlayer = {
-                id: userId,
-                name: playerName,
-                isHost: false,
-                score: 0,
-                role: null
-            };
-
-            players.push(newPlayer);
-            
-            // Update the document to add the new player
-            await updateDoc(roomRef, {
-                players: players,
-                lastUpdated: serverTimestamp()
-            });
-        }
-        
-        roomId = code;
-        isHost = false;
-        showScreen(gameScreen);
-        listenToRoom(code);
-
-    } catch (e) {
-        console.error("Error joining room:", e);
-        joinRoomError.textContent = `Failed to join room: ${e.message || 'Server error'}.`;
-    }
-}
-
-/**
- * Exits the current lobby, handling clean up.
- * @param {boolean} isGameOver - True if exiting after game over.
- */
-async function exitLobby(isGameOver = false) {
-    if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = null;
-    }
-
-    if (!roomId) {
-        showScreen(mainMenu);
-        return;
-    }
-    
-    const roomRef = doc(getRoomCollection(), roomId);
-
-    try {
-        if (isHost && !isGameOver) {
-            // Host leaves: delete the room
-            await deleteDoc(roomRef);
-            console.log(`Host left, room ${roomId} deleted.`);
-        } else if (userId) {
-            // Player leaves: remove them from the player array in a transaction
-            await runTransaction(db, async (transaction) => {
-                const roomDoc = await transaction.get(roomRef);
-                if (!roomDoc.exists()) return;
-                
-                let players = roomDoc.data().players || [];
-                const updatedPlayers = players.filter(p => p.id !== userId);
-
-                if (updatedPlayers.length > 0) {
-                    transaction.update(roomRef, {
-                        players: updatedPlayers,
-                        lastUpdated: serverTimestamp()
-                    });
-                } else {
-                    // Last player leaves, delete the room
-                    transaction.delete(roomRef);
-                }
-            });
-            console.log(`Player left room ${roomId}.`);
-        }
-    } catch (e) {
-        console.error("Error exiting lobby/deleting room:", e);
-    }
-    
-    // Reset state and return to main menu
-    roomId = '';
-    isHost = false;
-    playerName = '';
-    if (hostControlsContainer) hostControlsContainer.innerHTML = '';
-    if (startGameBtn) startGameBtn.classList.remove('hidden'); // Show button on main menu/lobby again
-    showScreen(mainMenu);
-}
-
-
-// --- INITIALIZATION ---
-
-/**
- * Initializes Firebase, Auth, and sets up UI listeners.
- */
-async function initFirebase() {
-    setLogLevel('debug');
-    if (Object.keys(firebaseConfig).length === 0) {
-        console.error("Firebase config is missing. Cannot initialize.");
-        showMessageBox("Setup Error", "Firebase configuration is missing.");
-        return;
-    }
-    
-    const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    auth = getAuth(app);
-    
-    // Auth logic: Sign in anonymously or with custom token
-    try {
-        if (initialAuthToken) {
-            await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-            await signInAnonymously(auth);
-        }
-    } catch (error) {
-        console.error("Firebase authentication failed:", error);
-        showMessageBox("Auth Error", "Failed to sign in. Please refresh.");
-    }
-    
-    // Listen for auth state changes to get the user ID
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            userId = user.uid;
-            isAuthenticated = true;
-            console.log("Authenticated user ID:", userId);
-        } else {
-            console.error("User is signed out.");
-        }
-    });
-}
-
-document.addEventListener("DOMContentLoaded", async function() {
-    await initFirebase();
-
-    // Attach UI event handlers
-    const createBtn = document.querySelector('.create-btn');
-    const joinBtn = document.querySelector('.join-btn');
-    if (createBtn) createBtn.onclick = () => showScreen(createScreen);
-    if (joinBtn) joinBtn.onclick = () => showScreen(joinScreen);
-    
-    // Use data-target for back buttons on different screens
-    document.querySelectorAll('.back-btn').forEach(btn => {
-        if (btn.dataset.target) {
-            btn.onclick = () => showScreen(document.getElementById(btn.dataset.target));
-        }
-    });
-
-    const createRoomFinal = document.getElementById('createRoomFinal');
-    const joinRoomFinal = document.getElementById('joinRoomFinal');
-
-    if (createRoomFinal) createRoomFinal.onclick = createRoom;
-    if (joinRoomFinal) joinRoomFinal.onclick = joinRoom;
-    
-    if (startGameBtn) startGameBtn.onclick = startGame;
-    if (exitLobbyBtn) exitLobbyBtn.onclick = exitLobby;
-
-    // Show initial screen
-    showScreen(mainMenu);
-});
-
-// Attach exit lobby logic to window close/reload event for cleanup (best effort)
-window.addEventListener('beforeunload', () => {
-    if (unsubscribe) {
-        unsubscribe();
-    }
-    // Note: Deleting/leaving logic on unload is unreliable in browsers,
-    // but the Firebase transaction on exitLobby is the primary mechanism.
+  // --- Exit Lobby ---
+  if (exitLobbyBtn) exitLobbyBtn.onclick = async () => {
+    if (unsubscribe) {
+      unsubscribe();
+      unsubscribe = null;
+    }
+    
+    // Option to remove the player from the room or delete the room if host
+    const selfId = firebase.auth().currentUser?.uid;
+    if (selfId && roomId) {
+        const roomRef = db.collection('rmcs_rooms').doc(roomId);
+        try {
+            const doc = await roomRef.get();
+            const data = doc.data();
+            if (data) {
+                if (data.host === selfId) {
+                    // Host leaves: Delete the room (or assign new host)
+                    await roomRef.delete();
+                } else {
+                    // Non-host leaves: Remove player from the list
+                    const playerToRemove = data.players.find(p => p.id === selfId);
+                    if (playerToRemove) {
+                        await roomRef.update({
+                            players: firebase.firestore.FieldValue.arrayRemove(playerToRemove)
+                        });
+                    }
+                }
+            }
+        } catch(e) {
+            console.error("Error leaving room:", e);
+        }
+    }
+    
+    roomId = '';
+    playerName = '';
+    showScreen(mainMenu);
+  };
+  
+  // Initial anonymous sign-in to ensure a user is available for room creation/joining
+  if (typeof firebase !== 'undefined' && firebase.auth) {
+      firebase.auth().onAuthStateChanged(user => {
+          if (!user) {
+              // Attempts to sign in anonymously if no user is found
+              firebase.auth().signInAnonymously().catch(e => {
+                  console.error("Failed to sign in anonymously:", e);
+                  showMessage("Authentication Error", "Could not connect to the game server. Please refresh.");
+              });
+          }
+      });
+  } else {
+       console.error("Firebase SDK not initialized correctly.");
+       showMessage("System Error", "Firebase SDK is missing. Check your HTML imports.");
+  }
 });
