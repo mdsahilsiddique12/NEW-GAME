@@ -3,21 +3,57 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Raja Mantri Chor Sipahi</title>
+  <title>RMCS: Protocol 2077</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Optional External CSS if you have it -->
-  <link rel="stylesheet" href="css/styles.css">
+  <!-- Google Fonts: Futuristic & Tech -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
   
-  <!-- Internal CSS for Top-Notch GUI -->
+  <!-- Internal CSS: Cyberpunk / Neon Theme -->
   <style>
-    :root { font-family: 'Inter', sans-serif; }
+    :root {
+      --neon-blue: #00f3ff;
+      --neon-pink: #bc13fe;
+      --neon-green: #0aff0a;
+      --dark-bg: #050510;
+      --glass-panel: rgba(10, 10, 25, 0.7);
+      --grid-color: rgba(0, 243, 255, 0.1);
+    }
 
-    /* Main Background */
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background-color: var(--dark-bg);
+      background-image: 
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+      background-size: 40px 40px;
+      background-position: center center;
+      color: #e0e0e0;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* CRT Scanline Effect Overlay */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 2px, 3px 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Utility Classes */
+    .font-cyber { font-family: 'Orbitron', sans-serif; }
+    .text-neon-blue { color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
+    .text-neon-pink { color: var(--neon-pink); text-shadow: 0 0 10px var(--neon-pink); }
+    
     .centered-bg {
-      background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -26,160 +62,212 @@
       padding: 1rem;
     }
 
-    .logo-block {
-      margin-bottom: 2rem;
-      text-align: center;
-    }
-
-    /* Screen Containers */
+    /* Cyber Panels */
     .menu-screen {
-      display: none; /* Hidden by default, toggled by JS */
+      display: none;
       width: 100%;
-      max-width: 380px;
-      padding: 2rem;
-      background-color: #ffffff;
-      border-radius: 1.5rem;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      animation: fadeIn 0.5s ease-out;
-    }
-    
-    .active-screen {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
+      max-width: 420px;
+      padding: 2.5rem;
+      background: var(--glass-panel);
+      border: 1px solid rgba(0, 243, 255, 0.3);
+      box-shadow: 0 0 20px rgba(0, 243, 255, 0.1), inset 0 0 20px rgba(0,0,0,0.8);
+      backdrop-filter: blur(10px);
+      clip-path: polygon(
+        0 10px, 10px 0, 
+        100% 0, 100% calc(100% - 10px), 
+        calc(100% - 10px) 100%, 0 100%
+      );
+      animation: cyberFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* Buttons & Inputs */
-    .giant-btn {
-      @apply w-full py-4 rounded-xl text-xl font-bold text-white shadow-lg transform transition hover:scale-105 active:scale-95;
-    }
-    .create-btn { background: linear-gradient(to right, #4f46e5, #6366f1); }
-    .join-btn { background: linear-gradient(to right, #10b981, #34d399); }
-    
-    .confirm-btn {
-      @apply w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition shadow-md;
-    }
-    .back-btn {
-      @apply w-full bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-300 transition mt-2;
-    }
+    .active-screen { display: flex; flex-direction: column; gap: 1.5rem; }
+
+    /* Cyber Inputs */
     .input-field {
-      @apply w-full p-4 border-2 border-gray-200 rounded-xl text-lg focus:outline-none focus:border-indigo-500 transition bg-gray-50;
+      width: 100%;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid #333;
+      border-left: 4px solid var(--neon-blue);
+      color: white;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.2rem;
+      letter-spacing: 1px;
+      transition: all 0.3s;
     }
-    .error-msg { @apply text-red-500 text-sm text-center mt-2 font-semibold; }
+    .input-field:focus {
+      outline: none;
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+    }
+
+    /* Cyber Buttons (Glitchy & Neon) */
+    .cyber-btn {
+      position: relative;
+      background: transparent;
+      border: 2px solid var(--neon-blue);
+      color: var(--neon-blue);
+      padding: 1rem 2rem;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: 0.3s;
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+    .cyber-btn:hover {
+      background: var(--neon-blue);
+      color: black;
+      box-shadow: 0 0 30px var(--neon-blue);
+      text-shadow: none;
+    }
+    .cyber-btn.secondary {
+      border-color: var(--neon-pink);
+      color: var(--neon-pink);
+    }
+    .cyber-btn.secondary:hover {
+      background: var(--neon-pink);
+      color: white;
+      box-shadow: 0 0 30px var(--neon-pink);
+    }
+    .cyber-btn.danger {
+      border-color: #ff003c;
+      color: #ff003c;
+    }
+    .cyber-btn.danger:hover {
+      background: #ff003c;
+      color: white;
+      box-shadow: 0 0 30px #ff003c;
+    }
 
     /* Room Code Display */
     .room-code-display {
-      background-color: #eff6ff;
-      border: 2px dashed #bfdbfe;
-      color: #1e40af;
-      padding: 0.75rem;
-      border-radius: 0.75rem;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px dashed var(--neon-green);
+      color: var(--neon-green);
+      font-family: 'Orbitron', monospace;
+      padding: 1rem;
+      border-radius: 4px;
       display: flex;
-      align-items: center;
       justify-content: center;
-      margin-bottom: 1rem;
-    }
-    .room-code-display-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
+      text-shadow: 0 0 5px var(--neon-green);
     }
 
-    /* 3D Game Table */
+    /* 3D Holographic Table */
     .game-table {
       position: relative;
-      width: 300px;
-      height: 300px;
-      margin: 0 auto;
-      perspective: 1000px;
+      width: 320px;
+      height: 320px;
+      margin: 2rem auto;
+      perspective: 1200px;
     }
     .table {
       position: absolute;
       width: 100%;
       height: 100%;
-      background: radial-gradient(circle at 30% 30%, #ffd700, #d4af37);
       border-radius: 50%;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.4);
-      z-index: 1;
+      background: 
+        radial-gradient(circle, transparent 20%, rgba(0, 243, 255, 0.1) 60%, rgba(0, 243, 255, 0.4) 100%);
+      border: 2px solid rgba(0, 243, 255, 0.5);
+      box-shadow: 0 0 50px rgba(0, 243, 255, 0.2), inset 0 0 30px rgba(0, 243, 255, 0.2);
+      transform: rotateX(40deg);
+      animation: hologramPulse 4s infinite ease-in-out;
     }
-    
-    /* Avatars */
-    .avatar {
+    /* Grid lines on table */
+    .table::after {
+      content: '';
       position: absolute;
-      width: 60px;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2;
-      transition: all 0.3s ease;
-    }
-    .avatar-name {
-      position: absolute;
-      bottom: -25px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255, 255, 255, 0.9);
-      padding: 2px 6px;
-      border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      white-space: nowrap;
+      inset: 0;
+      border-radius: 50%;
+      background: 
+        repeating-linear-gradient(0deg, transparent 0, transparent 19px, rgba(0, 243, 255, 0.1) 20px),
+        repeating-linear-gradient(90deg, transparent 0, transparent 19px, rgba(0, 243, 255, 0.1) 20px);
     }
 
-    /* Dynamic Game Content (Overlays the table) */
+    /* Avatars (Floating Orbs) */
+    .avatar {
+      position: absolute;
+      width: 70px;
+      height: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      background: rgba(0,0,0,0.8);
+      border: 2px solid var(--neon-blue);
+      border-radius: 50%;
+      box-shadow: 0 0 15px var(--neon-blue);
+    }
+    .avatar-name {
+      margin-top: 80px; /* Push name below orb */
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: white;
+      background: var(--neon-blue);
+      color: black;
+      padding: 2px 8px;
+      border-radius: 2px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      position: absolute;
+    }
+
+    /* Dynamic Game Content Overlay */
     #gameContent {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: none; /* Toggled by JS */
+      top: -20px; left: -20px; right: -20px; bottom: -20px;
+      display: none; /* JS toggles this */
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 10; /* Must be higher than table/avatars */
-      background: rgba(255, 255, 255, 0.85); /* Semi-transparent overlay */
-      backdrop-filter: blur(4px);
-      border-radius: 20px;
+      z-index: 50;
+      background: rgba(5, 5, 16, 0.9);
+      border: 1px solid var(--neon-pink);
+      box-shadow: 0 0 30px rgba(188, 19, 254, 0.2);
+      backdrop-filter: blur(8px);
+      clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
     }
 
     /* Animations */
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    @keyframes cyberFadeIn {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); filter: blur(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
     }
-    .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
-    .paper-unfold { animation: unfold 0.6s cubic-bezier(0.165, 0.84, 0.44, 1) forwards; }
-    @keyframes unfold {
-      0% { transform: scaleY(0.005) scaleX(0); }
-      50% { transform: scaleY(0.005) scaleX(1); }
-      100% { transform: scaleY(1) scaleX(1); }
+    @keyframes hologramPulse {
+      0%, 100% { box-shadow: 0 0 30px rgba(0, 243, 255, 0.2), inset 0 0 20px rgba(0, 243, 255, 0.2); opacity: 0.8; }
+      50% { box-shadow: 0 0 60px rgba(0, 243, 255, 0.4), inset 0 0 40px rgba(0, 243, 255, 0.4); opacity: 1; }
     }
 
     /* Message Box */
     #messageBox {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(5px);
     }
     #messageBoxContent {
-      background: white;
-      padding: 2rem;
-      border-radius: 1rem;
-      max-width: 90%;
-      width: 320px;
-      text-align: center;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      background: #111;
+      border: 2px solid var(--neon-blue);
+      box-shadow: 0 0 40px var(--neon-blue);
+      color: white;
     }
-    .hidden { display: none !important; }
+
+    /* Scoreboard */
+    #scoreboard {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid #333;
+      border-left: 2px solid var(--neon-green);
+    }
+    #scoreList .flex {
+      border-bottom-color: #222;
+    }
+
   </style>
 
-  <!-- EXACT SCRIPTS REQUESTED -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -190,109 +278,114 @@
 <body>
 
   <div class="centered-bg">
-    <!-- Logo Area -->
+    
+    <!-- Logo / Title -->
     <div class="logo-block">
-      <svg class="w-24 h-24 sm:w-32 sm:h-32 text-indigo-700 mx-auto drop-shadow-xl" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="5" y="5" width="90" height="90" rx="20" fill="white" stroke="#e2e8f0" stroke-width="2"/>
-        <text x="50" y="65" font-size="40" text-anchor="middle" fill="#4f46e5">👑</text>
-      </svg>
-      <h1 class="text-4xl font-extrabold text-gray-800 mt-4 tracking-tight">Raja Mantri<br>Chor Sipahi</h1>
+      <h1 class="font-cyber text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">
+        RMCS
+      </h1>
+      <p class="text-neon-blue tracking-[0.5em] text-sm font-bold mt-2 uppercase">Protocol: 2077</p>
     </div>
 
-    <!-- SCREENS WRAPPER -->
-    <div id="screens" class="w-full flex justify-center">
+    <div id="screens" class="w-full flex justify-center px-4">
       
       <!-- 1. Main Menu -->
       <div id="mainMenu" class="menu-screen active-screen">
-        <button class="create-btn giant-btn">Create Room</button>
-        <button class="join-btn giant-btn">Join Room</button>
+        <button class="cyber-btn w-full create-btn">Initialize Room</button>
+        <button class="cyber-btn w-full secondary join-btn">Join Network</button>
       </div>
 
       <!-- 2. Create Room -->
       <div id="createScreen" class="menu-screen">
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">Create New Room</h2>
-        <input type="text" id="createPlayerName" class="input-field" placeholder="Your Name">
-        <input type="text" id="createRoomCode" class="input-field mt-3 uppercase" maxlength="8" placeholder="Room Code (Optional)">
-        <div id="createRoomError" class="error-msg"></div>
-        <div class="mt-6 space-y-2">
-          <button id="createRoomFinal" class="confirm-btn">Create Room</button>
-          <button class="back-btn">Back</button>
+        <h2 class="font-cyber text-2xl text-neon-blue mb-4 uppercase border-b border-gray-800 pb-2">System Setup</h2>
+        <input type="text" id="createPlayerName" class="input-field mb-4" placeholder="ENTER AGENT ALIAS">
+        <input type="text" id="createRoomCode" class="input-field uppercase" maxlength="8" placeholder="SECURE CODE (OPTIONAL)">
+        <div id="createRoomError" class="text-red-500 text-sm mt-2 font-bold"></div>
+        <div class="mt-8 flex flex-col gap-3">
+          <button id="createRoomFinal" class="cyber-btn">Deploy</button>
+          <button class="cyber-btn danger back-btn">Abort</button>
         </div>
       </div>
 
       <!-- 3. Join Room -->
       <div id="joinScreen" class="menu-screen">
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">Join Room</h2>
-        <input type="text" id="joinPlayerName" class="input-field" placeholder="Your Name">
-        <input type="text" id="joinRoomCode" class="input-field mt-3 uppercase" maxlength="8" placeholder="Room Code">
-        <div id="joinRoomError" class="error-msg"></div>
-        <div class="mt-6 space-y-2">
-          <button id="joinRoomFinal" class="confirm-btn">Join Room</button>
-          <button class="back-btn">Back</button>
+        <h2 class="font-cyber text-2xl text-neon-pink mb-4 uppercase border-b border-gray-800 pb-2">Access Terminal</h2>
+        <input type="text" id="joinPlayerName" class="input-field mb-4" placeholder="ENTER AGENT ALIAS">
+        <input type="text" id="joinRoomCode" class="input-field uppercase" maxlength="8" placeholder="ACCESS CODE">
+        <div id="joinRoomError" class="text-red-500 text-sm mt-2 font-bold"></div>
+        <div class="mt-8 flex flex-col gap-3">
+          <button id="joinRoomFinal" class="cyber-btn secondary">Connect</button>
+          <button class="cyber-btn danger back-btn">Abort</button>
         </div>
       </div>
 
-      <!-- 4. Game Screen (Lobby) -->
-      <div id="gameScreen" class="menu-screen" style="max-width: 600px;"> <!-- Wider for game -->
-        <div class="flex justify-between items-center mb-2">
-           <h2 class="text-2xl font-bold text-gray-800">Game Room</h2>
-           <button id="exitLobbyBtn" class="text-red-500 text-sm font-bold hover:underline">Exit</button>
+      <!-- 4. Game Screen (Lobby & Play) -->
+      <div id="gameScreen" class="menu-screen" style="max-width: 900px;">
+        
+        <!-- Header Bar -->
+        <div class="flex justify-between items-center mb-4 border-b border-gray-800 pb-3">
+           <div class="flex items-center gap-3">
+             <div class="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_10px_#0f0] animate-pulse"></div>
+             <h2 class="font-cyber text-xl text-white tracking-widest">LIVE FEED</h2>
+           </div>
+           <button id="exitLobbyBtn" class="text-red-500 font-bold text-xs hover:text-red-400 tracking-widest border border-red-900 px-3 py-1 rounded hover:bg-red-900/30 transition">DISCONNECT</button>
         </div>
 
-        <!-- Room Code -->
-        <div id="currentRoomCode" class="room-code-display"></div>
+        <!-- Room Code Bar -->
+        <div class="flex justify-center mb-6">
+           <div id="currentRoomCode" class="room-code-display w-full max-w-md"></div>
+        </div>
 
-        <!-- Main Game Layout -->
-        <div class="flex flex-col md:flex-row gap-4 items-start">
+        <!-- Main Layout: Scoreboard + Table -->
+        <div class="flex flex-col lg:flex-row gap-8 items-start">
           
-          <!-- Scoreboard (Always Visible) -->
-          <div id="scoreboard" class="w-full md:w-1/3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm order-2 md:order-1">
-            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 border-b pb-1">Scoreboard</h3>
-            <div id="scoreList" class="space-y-2 max-h-32 overflow-y-auto">
-              <!-- Scores injected here -->
-              <div class="text-center text-gray-400 text-xs">Waiting for players...</div>
+          <!-- Scoreboard (Cyber Panel) -->
+          <div id="scoreboard" class="w-full lg:w-64 p-4 rounded-lg shadow-lg order-2 lg:order-1">
+            <h3 class="font-cyber text-neon-green text-sm mb-3 tracking-widest border-b border-gray-800 pb-2">LEADERBOARD</h3>
+            <div id="scoreList" class="space-y-2 text-sm font-mono text-gray-400 max-h-48 overflow-y-auto custom-scrollbar">
+              <div class="text-center italic opacity-50">Scanning for data...</div>
             </div>
           </div>
 
-          <!-- Game Table Area -->
-          <div class="flex-1 w-full relative order-1 md:order-2 flex flex-col items-center">
+          <!-- Central Hologram Table -->
+          <div class="flex-1 w-full relative order-1 lg:order-2 flex flex-col items-center">
             
-            <!-- The Visual Table -->
             <div class="game-table">
-              <div class="table"></div> <!-- Background Circle -->
-              <!-- Dynamic Content Overlay (Reveals, Guesses) -->
-              <div id="gameContent"></div> 
+              <div class="table"></div>
+              <!-- Game Dynamic Content (Results, Role Reveal, Guesses) -->
+              <div id="gameContent" class="p-6 text-center"></div> 
             </div>
 
-            <!-- Start Button Area -->
-            <div class="mt-6 w-full max-w-xs z-20">
-               <button id="startGameBtn" class="confirm-btn bg-green-600 hover:bg-green-700 shadow-lg">
-                 Start Game
+            <!-- Host Controls -->
+            <div class="mt-8 w-full max-w-xs z-20 flex flex-col gap-3">
+               <button id="startGameBtn" class="cyber-btn w-full shadow-[0_0_20px_rgba(0,243,255,0.3)]">
+                 INITIATE SEQUENCE
                </button>
-               <button id="cancelRoomBtn" class="w-full mt-3 text-red-500 text-sm font-bold hover:bg-red-50 p-2 rounded">
-                 Cancel Room
+               <button id="cancelRoomBtn" class="text-xs text-red-600 hover:text-red-400 tracking-widest uppercase font-bold py-2 hidden">
+                 [ TERMINATE SESSION ]
                </button>
             </div>
 
           </div>
         </div>
 
-        <!-- Player List (Lobby View) -->
-        <div class="mt-4 border-t pt-2">
-          <h3 class="text-sm font-bold text-gray-500 mb-2">Players in Lobby:</h3>
-          <div id="playersList" class="flex flex-wrap gap-2"></div>
+        <!-- Connected Agents -->
+        <div class="mt-6 border-t border-gray-800 pt-4">
+          <h3 class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Connected Operatives</h3>
+          <div id="playersList" class="flex flex-wrap gap-3"></div>
         </div>
+
       </div>
 
     </div>
   </div>
 
-  <!-- Message Box Modal -->
-  <div id="messageBox" class="hidden">
-    <div id="messageBoxContent">
-      <h3 id="messageBoxTitle" class="text-xl font-bold mb-2 text-gray-800">Message</h3>
-      <p id="messageBoxBody" class="text-gray-600 mb-6">Body text...</p>
-      <button id="messageBoxClose" class="confirm-btn">OK</button>
+  <!-- Custom Message Modal -->
+  <div id="messageBox" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div id="messageBoxContent" class="p-8 max-w-sm w-full text-center relative overflow-hidden">
+      <h3 id="messageBoxTitle" class="font-cyber text-2xl text-neon-blue mb-4">ALERT</h3>
+      <p id="messageBoxBody" class="text-gray-300 mb-8 font-mono text-sm leading-relaxed">System notification.</p>
+      <button id="messageBoxClose" class="cyber-btn w-full">ACKNOWLEDGE</button>
     </div>
   </div>
 
