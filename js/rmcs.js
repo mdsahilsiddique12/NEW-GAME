@@ -664,18 +664,31 @@ document.addEventListener("DOMContentLoaded", function () {
     playerRoles.forEach(p => roleMap[p.role] = p.name);
 
     const resultsHtml = `
-      <div class="w-full bg-black/50 border border-gray-700 p-4 rounded mt-4 text-left">
-        <div class="flex justify-between items-center border-b border-gray-700 pb-1 mb-2">
-          <span class="text-xs text-gray-500 uppercase">Mission Report</span>
+      <div class="w-full bg-black/80 border border-gray-600 p-4 rounded mt-4 text-left shadow-lg">
+        <div class="flex justify-between items-center border-b border-gray-500 pb-1 mb-2">
+          <span class="text-xs text-gray-300 uppercase tracking-wider">Mission Report</span>
         </div>
-        <div class="space-y-2 text-sm font-mono">
-          <div class="flex justify-between"><span class="text-yellow-500">👑 RAJA</span> <span class="text-white">${roleMap['Raja'] || '-'}</span></div>
-          <div class="flex justify-between"><span class="text-purple-400">🧠 MANTRI</span> <span class="text-white">${roleMap['Mantri'] || '-'}</span></div>
-          <div class="flex justify-between"><span class="text-blue-400">🛡️ SIPAHI</span> <span class="text-white">${roleMap['Sipahi'] || '-'}</span></div>
-          <div class="flex justify-between"><span class="text-red-500">🔪 CHOR</span> <span class="text-white">${roleMap['Chor'] || '-'}</span></div>
+        <div class="space-y-3 text-base font-bold font-mono">
+          <div class="flex justify-between items-center bg-white/5 p-2 rounded">
+            <span class="text-yellow-300 drop-shadow-sm">👑 RAJA</span> 
+            <span class="text-white tracking-wide">${roleMap['Raja'] || '-'}</span>
+          </div>
+          <div class="flex justify-between items-center bg-white/5 p-2 rounded">
+            <span class="text-fuchsia-300 drop-shadow-sm">🧠 MANTRI</span> 
+            <span class="text-white tracking-wide">${roleMap['Mantri'] || '-'}</span>
+          </div>
+          <div class="flex justify-between items-center bg-white/5 p-2 rounded">
+            <span class="text-cyan-300 drop-shadow-sm">🛡️ SIPAHI</span> 
+            <span class="text-white tracking-wide">${roleMap['Sipahi'] || '-'}</span>
+          </div>
+          <div class="flex justify-between items-center bg-white/5 p-2 rounded">
+            <span class="text-rose-400 drop-shadow-sm">🔪 CHOR</span> 
+            <span class="text-white tracking-wide">${roleMap['Chor'] || '-'}</span>
+          </div>
         </div>
       </div>
     `;
+
 
     gameContent.innerHTML = `
       <div class="flex flex-col items-center w-full animate-fade-in">
