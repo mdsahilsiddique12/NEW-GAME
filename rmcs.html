@@ -264,6 +264,7 @@
     #scoreList .flex {
       border-bottom-color: #222;
     }
+  
 
   </style>
 
@@ -345,8 +346,12 @@
             <div id="scoreList" class="space-y-2 text-sm font-mono text-gray-400 max-h-48 overflow-y-auto custom-scrollbar">
               <div class="text-center italic opacity-50">Scanning for data...</div>
             </div>
-          </div>
 
+            <!-- New Button Added Here -->
+            <button id="openHistoryBtn" class="w-full mt-4 text-xs font-cyber text-neon-blue border border-neon-blue px-3 py-2 rounded hover:bg-neon-blue hover:text-black transition uppercase tracking-widest">
+              VIEW MISSION LOG
+            </button>
+          </div>
           <!-- Central Hologram Table -->
           <div class="flex-1 w-full relative order-1 lg:order-2 flex flex-col items-center">
             
@@ -375,6 +380,23 @@
           <div id="playersList" class="flex flex-wrap gap-3"></div>
         </div>
 
+      </div>
+
+    </div>
+  </div>
+  <!-- History Modal -->
+  <div id="historyModal" class="fixed inset-0 hidden z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm">
+    <div class="bg-[#0a0a15] border border-neon-blue w-full max-w-3xl max-h-[80vh] rounded-xl flex flex-col shadow-[0_0_40px_rgba(0,243,255,0.2)] relative">
+      
+      <!-- Header -->
+      <div class="flex justify-between items-center p-4 border-b border-gray-800">
+        <h3 class="font-cyber text-xl text-white tracking-widest">MISSION LOG ARCHIVE</h3>
+        <button id="closeHistoryBtn" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+      </div>
+      
+      <!-- Content -->
+      <div id="historyContent" class="p-4 overflow-y-auto custom-scrollbar flex-1">
+        <!-- Table injected by JS -->
       </div>
 
     </div>
