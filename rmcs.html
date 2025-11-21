@@ -7,11 +7,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/styles.css"> 
   <style>
-    /* NOTE: Tailwind CSS in rmcs.html has been replaced by the styles.css file provided in the zip for an enhanced look.
-       Only game-specific/utility styles are kept here. */
+    /* ... (CSS styles remain the same as previous response) ... */
     :root { font-family: 'Inter', sans-serif; }
     
-    /* The centered-bg class is updated by styles.css */
     .centered-bg {
       /* Overriding styles.css for the menu block placement in mobile view */
       display: flex;
@@ -38,7 +36,6 @@
     }
     .active-screen { display: flex; flex-direction: column; gap: 1rem; }
     
-    /* Tailwind utility classes have been moved to styles.css's giant-btn, confirm-btn, back-btn, input-field */
     .room-code-display {
       @apply bg-indigo-50 border border-indigo-200 text-indigo-800 p-3 rounded-lg flex items-center justify-between font-mono text-xl select-none;
     }
@@ -52,14 +49,12 @@
       @apply bg-white p-8 rounded-xl shadow-2xl max-w-sm text-center transform scale-100 transition-transform duration-300;
     }
     
-    /* 3D Table View for Lobby - Enhanced for better visual experience */
     .game-table {
       position: relative;
       width: 300px;
       height: 300px;
       margin: 2rem auto;
       perspective: 1000px;
-      /* Add game content wrapper for dynamic UI */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -73,7 +68,6 @@
       border-radius: 50%;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
       transform-style: preserve-3d;
-      /* Ensure table is always at the back */
       z-index: 1;
     }
     .avatar {
@@ -87,7 +81,7 @@
       justify-content: center;
       font-size: 2rem;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      z-index: 2; /* Avatars on top of the table */
+      z-index: 2; 
     }
     .avatar-name {
       position: absolute;
@@ -99,7 +93,6 @@
       color: #333;
       white-space: nowrap;
     }
-    /* Dynamic Game UI container - covers the table for in-game phases */
     #gameContent {
         position: absolute;
         top: 0;
@@ -116,7 +109,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="js/firebase-config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script> <script src="js/firebase-config.js"></script>
 </head>
 <body>
   <div class="centered-bg">
