@@ -1,5 +1,5 @@
 {
-  "name": "your-multiplayer-game",
+  "name": "multiplayergamesbysahil",
   "version": "1.0.0",
   "description": "A simple multiplayer game deployed on Netlify.",
   "main": "index.html",
@@ -7,3 +7,4 @@
     "build": "echo 'No build step required' && exit 0"
   }
 }
+
