@@ -4,12 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Raja Mantri Chor Sipahi</title>
+  
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Optional External CSS if you have it -->
   <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- Internal CSS for Top-Notch GUI -->
   <style>
     :root { font-family: 'Inter', sans-serif; }
 
+    /* Main Background */
     .centered-bg {
+      background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -23,8 +31,9 @@
       text-align: center;
     }
 
+    /* Screen Containers */
     .menu-screen {
-      display: none;
+      display: none; /* Hidden by default, toggled by JS */
       width: 100%;
       max-width: 380px;
       padding: 2rem;
@@ -33,174 +42,259 @@
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
       animation: fadeIn 0.5s ease-out;
     }
-
+    
     .active-screen {
       display: flex;
       flex-direction: column;
       gap: 1rem;
     }
 
+    /* Buttons & Inputs */
+    .giant-btn {
+      @apply w-full py-4 rounded-xl text-xl font-bold text-white shadow-lg transform transition hover:scale-105 active:scale-95;
+    }
+    .create-btn { background: linear-gradient(to right, #4f46e5, #6366f1); }
+    .join-btn { background: linear-gradient(to right, #10b981, #34d399); }
+    
+    .confirm-btn {
+      @apply w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition shadow-md;
+    }
+    .back-btn {
+      @apply w-full bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-lg hover:bg-gray-300 transition mt-2;
+    }
+    .input-field {
+      @apply w-full p-4 border-2 border-gray-200 rounded-xl text-lg focus:outline-none focus:border-indigo-500 transition bg-gray-50;
+    }
+    .error-msg { @apply text-red-500 text-sm text-center mt-2 font-semibold; }
+
+    /* Room Code Display */
     .room-code-display {
-      @apply bg-indigo-50 border border-indigo-200 text-indigo-800 p-3 rounded-lg flex items-center justify-between font-mono text-xl select-none;
+      background-color: #eff6ff;
+      border: 2px dashed #bfdbfe;
+      color: #1e40af;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+    .room-code-display-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
     }
 
-    .copy-btn {
-      @apply ml-3 p-2 bg-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-300 transition-colors duration-200;
-    }
-
-    #messageBox {
-      @apply fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center hidden;
-    }
-
-    #messageBoxContent {
-      @apply bg-white p-8 rounded-xl shadow-2xl max-w-sm text-center transform scale-100 transition-transform duration-300;
-    }
-
+    /* 3D Game Table */
     .game-table {
       position: relative;
       width: 300px;
       height: 300px;
-      margin: 2rem auto;
+      margin: 0 auto;
       perspective: 1000px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
     }
-
     .table {
       position: absolute;
       width: 100%;
       height: 100%;
-      background: #d4af37;
+      background: radial-gradient(circle at 30% 30%, #ffd700, #d4af37);
       border-radius: 50%;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
-      transform-style: preserve-3d;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.4);
       z-index: 1;
     }
-
+    
+    /* Avatars */
     .avatar {
       position: absolute;
       width: 60px;
       height: 60px;
-      background: #fff;
-      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 2rem;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       z-index: 2;
+      transition: all 0.3s ease;
     }
-
     .avatar-name {
       position: absolute;
-      top: -25px;
+      bottom: -25px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 0.8rem;
-      font-weight: bold;
-      color: #333;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 2px 6px;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       white-space: nowrap;
     }
 
+    /* Dynamic Game Content (Overlays the table) */
     #gameContent {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      display: flex;
+      display: none; /* Toggled by JS */
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 5;
+      z-index: 10; /* Must be higher than table/avatars */
+      background: rgba(255, 255, 255, 0.85); /* Semi-transparent overlay */
+      backdrop-filter: blur(4px);
+      border-radius: 20px;
     }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+    .paper-unfold { animation: unfold 0.6s cubic-bezier(0.165, 0.84, 0.44, 1) forwards; }
+    @keyframes unfold {
+      0% { transform: scaleY(0.005) scaleX(0); }
+      50% { transform: scaleY(0.005) scaleX(1); }
+      100% { transform: scaleY(1) scaleX(1); }
+    }
+
+    /* Message Box */
+    #messageBox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #messageBoxContent {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      max-width: 90%;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    .hidden { display: none !important; }
   </style>
 
-  <!-- Firebase SDKs -->
+  <!-- EXACT SCRIPTS REQUESTED -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script> 
   <script src="js/firebase-config.js"></script>
   <script src="js/rmcs.js"></script>
 </head>
 <body>
+
   <div class="centered-bg">
+    <!-- Logo Area -->
     <div class="logo-block">
-      <svg class="main-logo w-24 h-24 sm:w-32 sm:h-32 text-indigo-700 mx-auto"
-           viewBox="0 0 100 100"
-           fill="none"
-           xmlns="http://www.w3.org/2000/svg"
-           alt="Raja Mantri Chor Sipahi Logo">
-        <rect x="0" y="0" width="100" height="100" rx="20" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="2"/>
-        <path d="M50 15 L40 35 L60 35 L50 15 Z M40 35 L45 45 L55 45 L60 35 Z" fill="#FFD700" stroke="#CCAA00" stroke-width="3"/>
-        <rect x="15" y="55" width="30" height="25" rx="5" fill="#4CAF50" stroke="#388E3C" stroke-width="3"/>
-        <circle cx="70" cy="67" r="15" fill="#333333" stroke="#111111" stroke-width="3"/>
-        <path d="M65 67 L75 67 M70 52 L70 82" stroke="#F0F0F0" stroke-width="2" stroke-linecap="round"/>
-        <path d="M50 50 L35 70 L65 70 L50 50 Z M35 70 L35 85 L65 85 L65 70 Z" fill="#2196F3" stroke="#1976D2" stroke-width="3"/>
-        <circle cx="50" cy="50" r="5" fill="#CCAA00"/>
+      <svg class="w-24 h-24 sm:w-32 sm:h-32 text-indigo-700 mx-auto drop-shadow-xl" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="90" height="90" rx="20" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+        <text x="50" y="65" font-size="40" text-anchor="middle" fill="#4f46e5">👑</text>
       </svg>
-      <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-800 mt-5 tracking-wide">Raja Mantri Chor Sipahi</h1>
+      <h1 class="text-4xl font-extrabold text-gray-800 mt-4 tracking-tight">Raja Mantri<br>Chor Sipahi</h1>
     </div>
-    <div id="screens">
+
+    <!-- SCREENS WRAPPER -->
+    <div id="screens" class="w-full flex justify-center">
+      
+      <!-- 1. Main Menu -->
       <div id="mainMenu" class="menu-screen active-screen">
-        <button id="createRoomBtn" class="giant-btn create-btn">Create Room</button>
-        <button id="joinRoomBtn" class="giant-btn join-btn">Join Room</button>
+        <button class="create-btn giant-btn">Create Room</button>
+        <button class="join-btn giant-btn">Join Room</button>
       </div>
+
+      <!-- 2. Create Room -->
       <div id="createScreen" class="menu-screen">
-        <h2 class="text-2xl font-bold mb-4 text-gray-800">Create New Room</h2>
-        <input type="text" id="createPlayerName" class="input-field fancy" placeholder="Enter your name" />
-        <input type="text" id="createRoomCode" maxlength="8" class="input-field fancy" placeholder="Room code (optional, 4-8 chars)" />
-        <button id="createRoomFinal" class="confirm-btn">Create</button>
-        <button class="back-btn" data-target="mainMenu">Back</button>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Create New Room</h2>
+        <input type="text" id="createPlayerName" class="input-field" placeholder="Your Name">
+        <input type="text" id="createRoomCode" class="input-field mt-3 uppercase" maxlength="8" placeholder="Room Code (Optional)">
         <div id="createRoomError" class="error-msg"></div>
-      </div>
-      <div id="joinScreen" class="menu-screen">
-        <h2 class="text-2xl font-bold mb-4 text-gray-800">Join Room</h2>
-        <input type="text" id="joinPlayerName" class="input-field fancy" placeholder="Enter your name" />
-        <input type="text" id="joinRoomCode" maxlength="8" class="input-field fancy uppercase" placeholder="Enter room code" />
-        <button id="joinRoomFinal" class="confirm-btn">Join</button>
-        <button class="back-btn" data-target="mainMenu">Back</button>
-        <div id="joinRoomError" class="error-msg"></div>
-      </div>
-      <div id="gameScreen" class="menu-screen">
-        <h2 class="text-3xl font-bold mb-4 text-gray-800">Room Lobby</h2>
-        <div id="roomCodeContainer" class="mb-4">
-          <p class="text-gray-600 mb-2 font-semibold">Share this Room Code:</p>
-          <div id="currentRoomCode" class="room-code-display"></div>
+        <div class="mt-6 space-y-2">
+          <button id="createRoomFinal" class="confirm-btn">Create Room</button>
+          <button class="back-btn">Back</button>
         </div>
-        <div class="flex w-full justify-between gap-4">
-          <div id="scoreboard" class="flex-1 bg-white p-4 rounded-xl shadow-lg border border-gray-100 hidden md:block" style="max-width: 150px; min-height: 200px;">
-            <h3 class="text-lg font-bold mb-2 text-gray-800 border-b pb-1">Scores</h3>
-            <div id="scoreList" class="text-sm font-semibold text-gray-600"></div>
-          </div>
-          <div class="flex-none" style="width: 300px; height: 300px;">
-            <div class="game-table">
-              <div class="table"></div>
-              <div id="gameContent"></div>
+      </div>
+
+      <!-- 3. Join Room -->
+      <div id="joinScreen" class="menu-screen">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Join Room</h2>
+        <input type="text" id="joinPlayerName" class="input-field" placeholder="Your Name">
+        <input type="text" id="joinRoomCode" class="input-field mt-3 uppercase" maxlength="8" placeholder="Room Code">
+        <div id="joinRoomError" class="error-msg"></div>
+        <div class="mt-6 space-y-2">
+          <button id="joinRoomFinal" class="confirm-btn">Join Room</button>
+          <button class="back-btn">Back</button>
+        </div>
+      </div>
+
+      <!-- 4. Game Screen (Lobby) -->
+      <div id="gameScreen" class="menu-screen" style="max-width: 600px;"> <!-- Wider for game -->
+        <div class="flex justify-between items-center mb-2">
+           <h2 class="text-2xl font-bold text-gray-800">Game Room</h2>
+           <button id="exitLobbyBtn" class="text-red-500 text-sm font-bold hover:underline">Exit</button>
+        </div>
+
+        <!-- Room Code -->
+        <div id="currentRoomCode" class="room-code-display"></div>
+
+        <!-- Main Game Layout -->
+        <div class="flex flex-col md:flex-row gap-4 items-start">
+          
+          <!-- Scoreboard (Always Visible) -->
+          <div id="scoreboard" class="w-full md:w-1/3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm order-2 md:order-1">
+            <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 border-b pb-1">Scoreboard</h3>
+            <div id="scoreList" class="space-y-2 max-h-32 overflow-y-auto">
+              <!-- Scores injected here -->
+              <div class="text-center text-gray-400 text-xs">Waiting for players...</div>
             </div>
           </div>
-          <div class="flex-1 hidden md:block">
-            <h3 class="text-xl font-semibold mb-3 text-gray-700">Players:</h3>
-            <div id="playersList" class="text-lg font-mono text-gray-600"></div>
+
+          <!-- Game Table Area -->
+          <div class="flex-1 w-full relative order-1 md:order-2 flex flex-col items-center">
+            
+            <!-- The Visual Table -->
+            <div class="game-table">
+              <div class="table"></div> <!-- Background Circle -->
+              <!-- Dynamic Content Overlay (Reveals, Guesses) -->
+              <div id="gameContent"></div> 
+            </div>
+
+            <!-- Start Button Area -->
+            <div class="mt-6 w-full max-w-xs z-20">
+               <button id="startGameBtn" class="confirm-btn bg-green-600 hover:bg-green-700 shadow-lg">
+                 Start Game
+               </button>
+               <button id="cancelRoomBtn" class="w-full mt-3 text-red-500 text-sm font-bold hover:bg-red-50 p-2 rounded">
+                 Cancel Room
+               </button>
+            </div>
+
           </div>
         </div>
-        <div class="flex flex-col gap-2 mt-6 w-full max-w-xs">
-          <button id="startGameBtn" class="confirm-btn">Start Game</button>
-          <button id="cancelRoomBtn" class="back-btn" style="display:none; background:#ff4e76; color:white;">Cancel/Delete Room</button>
-          <button id="exitLobbyBtn" class="back-btn">Exit Lobby</button>
+
+        <!-- Player List (Lobby View) -->
+        <div class="mt-4 border-t pt-2">
+          <h3 class="text-sm font-bold text-gray-500 mb-2">Players in Lobby:</h3>
+          <div id="playersList" class="flex flex-wrap gap-2"></div>
         </div>
       </div>
+
     </div>
   </div>
-  <div id="messageBox">
+
+  <!-- Message Box Modal -->
+  <div id="messageBox" class="hidden">
     <div id="messageBoxContent">
-      <h3 id="messageBoxTitle" class="text-2xl font-bold mb-3">Message</h3>
-      <p id="messageBoxBody" class="text-gray-700 mb-6"></p>
-      <button id="messageBoxClose" class="confirm-btn bg-indigo-600 hover:bg-indigo-700 !py-2 !px-6 !text-base">OK</button>
+      <h3 id="messageBoxTitle" class="text-xl font-bold mb-2 text-gray-800">Message</h3>
+      <p id="messageBoxBody" class="text-gray-600 mb-6">Body text...</p>
+      <button id="messageBoxClose" class="confirm-btn">OK</button>
     </div>
   </div>
+
 </body>
 </html>
