@@ -4,20 +4,20 @@ document.addEventListener("DOMContentLoaded", function() {
   const createScreen = document.getElementById('createScreen');
   const joinScreen = document.getElementById('joinScreen');
   const gameScreen = document.getElementById('gameScreen');
+  // playersListEl is not used in the HTML/JS provided but kept for compatibility
   const playersListEl = document.getElementById('playersList'); 
   const currentRoomCode = document.getElementById('currentRoomCode');
   const startGameBtn = document.getElementById('startGameBtn');
   const exitLobbyBtn = document.getElementById('exitLobbyBtn');
-  const cancelRoomBtn = document.getElementById('cancelRoomBtn'); // Must be in HTML
+  const cancelRoomBtn = document.getElementById('cancelRoomBtn'); // MUST BE IN HTML
   const gameTable = document.querySelector('.game-table'); 
-  const gameContent = document.getElementById('gameContent'); // Must be in HTML
-  const scoreboardEl = document.getElementById('scoreboard');
-  const scoreListEl = document.getElementById('scoreList');
+  const gameContent = document.getElementById('gameContent'); // MUST BE IN HTML
+  const scoreboardEl = document.getElementById('scoreboard'); // Must be in HTML
+  const scoreListEl = document.getElementById('scoreList'); // Must be in HTML
   
-  // Initialize Functions reference (must be called after firebase.initializeApp in firebase-config.js)
-  // ⚠️ NOTE: This line requires the firebase-functions.js SDK to be imported in your HTML.
-  const functions = firebase.functions();
-  
+  // NOTE: functions is defined here but depends on the Firebase Functions SDK import in HTML
+  const functions = typeof firebase !== 'undefined' && firebase.functions ? firebase.functions() : { httpsCallable: () => () => { throw new Error("Firebase Functions SDK not loaded!"); } };
+
   // --- State variables ---
   let unsubscribe = null, roomId = '', playerName = '';
 
@@ -77,18 +77,32 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
-  // NOTE: The assignRoles function has been removed. Role assignment is now handled by the 'startGame' Cloud Function.
+  // --- Client-side role assignment function (Used by Start Game button) ---
+  function assignRoles(players) {
+    const roles = ['Raja', 'Mantri', 'Chor', 'Sipahi'];
+    let shuffledPlayers = [...players].sort(() => Math.random() - 0.5); // Shuffle players
+    
+    return shuffledPlayers.map((player, index) => ({
+        id: player.id,
+        name: player.name,
+        role: roles[index]
+    }));
+  }
+  // --- End assignRoles ---
+
 
   function renderAvatarsTable(players, selfId) {
     // Hide game content container and show the 'table' visually
     if (gameContent) gameContent.innerHTML = '';
-    gameTable.querySelector('.table').style.display = 'block'; 
+    // This line assumes .game-table contains .table, which is visible in the lobby
+    const tableEl = gameTable ? gameTable.querySelector('.table') : null;
+    if(tableEl) tableEl.style.display = 'block'; 
     
     // Clear previous avatars
     [...gameTable.querySelectorAll('.avatar')].forEach(el => el.remove()); 
     
     const N = players.length;
-    if (N === 0) return;
+    if (N === 0 || !gameTable) return;
     
     const radius = 100, cx = 150, cy = 150; 
     const selfIndex = players.findIndex(p => p.id === selfId);
@@ -191,7 +205,6 @@ document.addEventListener("DOMContentLoaded", function() {
           }
         }
         
-        // Initialize scores object with 0 for all players
         let initialScores = {};
         initialScores[user.uid] = 0;
 
@@ -301,7 +314,6 @@ document.addEventListener("DOMContentLoaded", function() {
         const selfId = firebase.auth().currentUser?.uid;
 
         if (!data || !doc.exists) {
-           // This handles cases where the host deletes the room
            showMessage("Room Ended", "The room was deleted by the host or no longer exists.", () => showScreen(mainMenu));
            roomId = '';
            return;
@@ -310,7 +322,6 @@ document.addEventListener("DOMContentLoaded", function() {
         const players = data.players || [];
         const scores = data.scores || {};
         
-        // Check if the current user is still a part of the room
         if (!players.some(p => p.id === selfId)) {
              showMessage("Kicked/Left", "You have been removed from the room.", () => showScreen(mainMenu));
              if (unsubscribe) unsubscribe();
@@ -324,7 +335,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         let isHost = selfId === data.host;
         
-        // Show/Hide Cancel Room Button (Host only)
+        // Show/Hide Cancel Room Button (requires cancelRoomBtn element in HTML)
         if (cancelRoomBtn) {
             cancelRoomBtn.style.display = isHost ? 'block' : 'none';
             if (isHost) cancelRoomBtn.onclick = handleCancelRoom;
@@ -333,9 +344,11 @@ document.addEventListener("DOMContentLoaded", function() {
         // --- Lobby Phase ---
         if (data.phase === "lobby") {
           // Hide dynamic content and show the table for avatar placement
+          if (gameContent) gameContent.innerHTML = ''; // Clears the dynamic game UI container
+          const tableEl = gameTable ? gameTable.querySelector('.table') : null;
+          if(tableEl) tableEl.style.display = 'block'; 
           if (gameContent) gameContent.style.display = 'none';
-          gameTable.querySelector('.table').style.display = 'block'; 
-          
+
           renderAvatarsTable(players, selfId); 
           
           if (startGameBtn) {
@@ -343,18 +356,22 @@ document.addEventListener("DOMContentLoaded", function() {
             startGameBtn.disabled = !(isHost && players.length === 4);
             startGameBtn.textContent = (players.length === 4) ? 'Start Game' : `Waiting for ${4 - players.length} player(s) (Need 4)`;
             
-            // ⭐️ ROBUST SOLUTION: Call Cloud Function to start game/assign roles
+            // Start Game Logic
             startGameBtn.onclick = async () => {
               if (!(isHost && players.length === 4)) return;
               
               try {
                   startGameBtn.textContent = 'Starting...';
-                  const startGameFunction = functions.httpsCallable('startGame');
-                  // This is the ONLY place roles are assigned, and it's done securely on the server
-                  await startGameFunction({ roomId: roomCode }); 
-                  // The room listener handles the phase change
+                  // ⭐️ The roles are assigned client-side and then saved to Firestore
+                  const roles = assignRoles(players);
+                  
+                  await roomRef.update({
+                    phase: 'reveal',
+                    playerRoles: roles,
+                    revealed: []
+                  });
               } catch (error) {
-                  console.error("Error calling startGame function:", error);
+                  console.error("Error starting game:", error);
                   showMessage("Error Starting Game", error.message);
                   startGameBtn.textContent = 'Start Game'; // Reset button
               }
@@ -365,7 +382,8 @@ document.addEventListener("DOMContentLoaded", function() {
         } else {
             // Hide lobby-specific content (avatars on the table)
             if (gameContent) gameContent.style.display = 'flex'; 
-            gameTable.querySelector('.table').style.display = 'none';
+            const tableEl = gameTable ? gameTable.querySelector('.table') : null;
+            if(tableEl) tableEl.style.display = 'none'; 
             if (startGameBtn) startGameBtn.style.display = 'none';
             
             if (data.phase === 'reveal') {
@@ -373,14 +391,13 @@ document.addEventListener("DOMContentLoaded", function() {
             } else if (data.phase === 'guess') {
                 showSipahiGuessUI(data.playerRoles, selfId, roomCode);
             } else if (data.phase === "roundResult") {
-                // Score updates are now handled securely by the makeGuess Cloud Function
                 showRoundResult(data, selfId, roomCode, isHost); 
             }
         }
       });
   }
 
-  // --- Role Reveal Flow (Client-side update is fine as roles are already assigned securely) ---
+  // --- Role Reveal Flow ---
   function showRoleRevealScreen(players, selfId, playerRoles, revealed) {
     if (!gameContent) return;
     
@@ -390,20 +407,18 @@ document.addEventListener("DOMContentLoaded", function() {
     const isRajaSipahi = p && (p.role === 'Raja' || p.role === 'Sipahi');
     const alreadyRevealed = (revealed || []).some(r => r.id === selfId);
     
-    // Check if Raja and Sipahi have revealed their roles
     const rajaRevealed = (revealed || []).some(r => r.role === 'Raja');
     const sipahiRevealed = (revealed || []).some(r => r.role === 'Sipahi');
     
-    // Auto-transition to 'guess' phase (Host action, but client can perform this simple update)
-    if (rajaRevealed && sipahiReveahi && p.role === 'Raja') {
+    // Auto-transition to 'guess' phase by Host
+    if (rajaRevealed && sipahiRevealed && p.role === 'Raja') {
         db.collection('rmcs_rooms').doc(roomId).update({
             phase: 'guess',
-            revealed: [] // Reset for next round's reveal
+            revealed: []
         });
         return; 
     }
 
-    // Prepare HTML for revealed roles
     let revealedRoles = playerRoles.filter(pr => revealed.some(r => r.id === pr.id));
     let revealedHtml = revealedRoles.map(r => `
       <div class="text-center bg-gray-50 p-3 rounded-lg shadow-sm">
@@ -440,7 +455,6 @@ document.addEventListener("DOMContentLoaded", function() {
     const revealBtn = document.getElementById('revealBtn');
     if (isRajaSipahi && !alreadyRevealed && revealBtn) {
       revealBtn.onclick = () => {
-        // Direct write for revealing is fine as it's not a critical game state
         db.collection('rmcs_rooms').doc(roomId).update({
           revealed: firebase.firestore.FieldValue.arrayUnion({id: selfId, role: p.role, name: p.name})
         });
@@ -448,15 +462,14 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
-  // --- Sipahi Guess UI (Calls Cloud Function) ---
+  // --- Sipahi Guess UI (Fixes TypeError) ---
   function showSipahiGuessUI(playerRoles, selfId, roomCode) {
     if (!gameContent) return;
     
     const p = (playerRoles || []).find(p => p.id === selfId);
     
-    // Sipahi cannot guess Raja or Sipahi's own role.
     let targets = playerRoles.filter(pr => pr.role !== 'Raja' && pr.role !== 'Sipahi');
-    targets = targets.sort(() => Math.random() - 0.5); // Shuffle order on the UI
+    targets = targets.sort(() => Math.random() - 0.5); 
 
     let timer = 60, timerId; 
     
@@ -483,26 +496,26 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
       `;
       
-      const makeGuessFunction = functions.httpsCallable('makeGuess');
-
-      // **FIX for TypeError: Use querySelectorAll once after innerHTML is set**
+      // **FIX for TypeError: Select buttons from gameContent after innerHTML is set**
       const guessButtons = gameContent.querySelectorAll('.guess-btn');
 
       // Add event listeners to guess buttons
       guessButtons.forEach(button => {
-        const t = targets.find(target => target.id === button.dataset.id);
+        // Find the current player's target object based on the button's data-id
+        const t = targets.find(target => target.id === button.dataset.id); 
+
         if(t) {
             button.onclick = async () => {
               gameContent.querySelectorAll('.guess-btn').forEach(btn => btn.disabled = true);
               clearInterval(timerId); // Stop the timer
               
-              try {
-                  // ⭐️ ROBUST SOLUTION: Call Cloud Function to process guess and update score/phase
-                  await makeGuessFunction({ roomId: roomCode, guessedId: t.id });
-              } catch (error) {
-                  console.error("Error making guess:", error);
-                  showMessage("Guess Error", error.message);
-              }
+              let isChor = t.role === 'Chor';
+
+              // Store the result
+              await db.collection('rmcs_rooms').doc(roomCode).update({
+                phase: 'roundResult',
+                guess: { sipahi: p.id, guessed: t.id, correct: isChor, sipahiName: p.name, guessedName: t.name }
+              });
             };
         }
       });
@@ -525,15 +538,16 @@ document.addEventListener("DOMContentLoaded", function() {
       
       if (timer <= 0) {
         clearInterval(timerId);
-        // ⭐️ ROBUST SOLUTION: Call Cloud Function for timeout (guessedId: null)
-        const makeGuessFunction = functions.httpsCallable('makeGuess');
-        makeGuessFunction({ roomId: roomCode, guessedId: null })
-            .catch(error => console.error("Error on timeout guess:", error));
+        // Timeout: Move to result phase with no guess
+        db.collection('rmcs_rooms').doc(roomCode).update({
+            phase: 'roundResult',
+            guess: { sipahi: p.id, guessed: null, correct: false, sipahiName: p.name, guessedName: 'No Guess' }
+        });
       }
     }, 1000);
   }
 
-  // --- Round Result Animation & Next Button ---
+  // --- Round Result Animation & Next Button (Cancel Round) ---
   function showRoundResult(data, selfId, roomCode, isHost) {
     if (!gameContent) return;
     
@@ -541,6 +555,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const playerRoles = data.playerRoles;
     const roomRef = db.collection('rmcs_rooms').doc(roomCode);
     
+    // Process the guess result
     let isCorrect = res && res.correct;
     
     let message, emoji;
@@ -561,10 +576,17 @@ document.addEventListener("DOMContentLoaded", function() {
     const raja = playerRoles.find(p => p.role === 'Raja');
     const sipahi = playerRoles.find(p => p.role === 'Sipahi');
     
-    // Calculate Score for display purposes (data is already securely updated in Firestore)
-    let roundPoints = {};
-    if (isCorrect) { roundPoints[raja.id] = 1000; roundPoints[mantri.id] = 1000; roundPoints[sipahi.id] = 1000; roundPoints[chor.id] = 0; } 
-    else { roundPoints[raja.id] = 0; roundPoints[mantri.id] = 0; roundPoints[sipahi.id] = 0; roundPoints[chor.id] = 1000; }
+    // Score update is handled here as the last step of the round
+    const updateScores = functions.httpsCallable('updateScores');
+
+    if (!data.scoreUpdated) {
+        // Only trigger the score update function once per round
+        updateScores({ roomId: roomCode, isCorrect: isCorrect })
+            .catch(error => console.error("Error updating scores:", error));
+        // Set a flag to prevent multiple score updates if host refreshes
+        roomRef.update({ scoreUpdated: true }); 
+    }
+
 
     // Display score and full roles
     let resultsHtml = `
@@ -574,11 +596,6 @@ document.addEventListener("DOMContentLoaded", function() {
         <p>🧠 Mantri: <b>${mantri.name}</b></p>
         <p>🛡️ Sipahi: <b>${sipahi.name}</b></p>
         <p>🔪 Chor: <b class="text-red-600">${chor.name}</b></p>
-        <h4 class="text-lg font-bold mt-3 mb-2 border-b pb-1 text-gray-800">Round Points Earned</h4>
-        <p>Raja (${raja.name}): <b class="text-green-600">${roundPoints[raja.id]}</b></p>
-        <p>Mantri (${mantri.name}): <b class="text-green-600">${roundPoints[mantri.id]}</b></p>
-        <p>Sipahi (${sipahi.name}): <b class="text-green-600">${roundPoints[sipahi.id]}</b></p>
-        <p>Chor (${chor.name}): <b class="${roundPoints[chor.id] > 0 ? 'text-red-600' : 'text-green-600'}">${roundPoints[chor.id]}</b></p>
       </div>
     `;
 
@@ -598,13 +615,12 @@ document.addEventListener("DOMContentLoaded", function() {
       const nextRoundBtn = gameContent.querySelector('.next-round-btn');
       if (nextRoundBtn) {
         nextRoundBtn.onclick = async () => {
-          // Direct write back to lobby is fine, as 'startGame' will call the secure logic next.
           await roomRef.update({
             phase: 'lobby', 
             playerRoles: [],
             revealed: [],
             guess: null,
-            scoreUpdated: false // Reset flag for the next round
+            scoreUpdated: false
           });
         };
       }
