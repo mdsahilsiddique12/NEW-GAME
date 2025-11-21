@@ -8,7 +8,6 @@ const db = admin.firestore();
 function assignRoles(players) {
   if (players.length !== 4) return null;
   const roleNames = ['Raja', 'Mantri', 'Chor', 'Sipahi'];
-  // Shuffle
   const shuffled = [...roleNames].sort(() => Math.random() - 0.5);
   
   return players.map((p, i) => ({
@@ -18,9 +17,8 @@ function assignRoles(players) {
   }));
 }
 
-// --- Helper: Calculate Points for This Round ---
+// --- Helper: Calculate Points ---
 function getRoundPoints(playerRoles, isCorrect) {
-  // Standard Points: Raja=1000, Mantri=500, Sipahi=250/0, Chor=0/250
   const points = {};
   playerRoles.forEach(p => {
     if (p.role === 'Raja') points[p.id] = 1000;
@@ -31,25 +29,35 @@ function getRoundPoints(playerRoles, isCorrect) {
   return points;
 }
 
-// --- 1. Start/Next Round ---
+// --- 1. Start Game / Next Round ---
 exports.startGame = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Auth required');
+  // Authentication check
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+  }
+
   const { roomId } = data;
+  // VALIDATION: Ensure roomId exists
+  if (!roomId) {
+    throw new functions.https.HttpsError('invalid-argument', 'The function must be called with a valid roomId.');
+  }
+
   const roomRef = db.collection('rmcs_rooms').doc(roomId);
   const doc = await roomRef.get();
 
-  if (!doc.exists) throw new functions.https.HttpsError('not-found', 'Room not found');
+  if (!doc.exists) {
+    throw new functions.https.HttpsError('not-found', 'Room not found.');
+  }
+  
   const roomData = doc.data();
 
   // Authorization: Host only
   if (roomData.host !== context.auth.uid) {
-    throw new functions.https.HttpsError('permission-denied', 'Host only');
+    throw new functions.https.HttpsError('permission-denied', 'Only the host can start the game.');
   }
 
-  // Assign Roles
   const roles = assignRoles(roomData.players);
   
-  // Reset/Init Round State
   await roomRef.update({
     phase: 'reveal',
     playerRoles: roles,
@@ -61,20 +69,28 @@ exports.startGame = functions.https.onCall(async (data, context) => {
   return { success: true };
 });
 
-// --- 2. Update Scores (Called at end of round) ---
+// --- 2. Update Scores ---
 exports.updateScores = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Auth required.');
+  }
+
   const { roomId, isCorrect } = data;
+  if (!roomId) {
+    throw new functions.https.HttpsError('invalid-argument', 'RoomId required.');
+  }
+
   const roomRef = db.collection('rmcs_rooms').doc(roomId);
   
-  // Run inside transaction to ensure atomic updates (history + score)
   await db.runTransaction(async (t) => {
     const doc = await t.get(roomRef);
     if (!doc.exists) return;
     const d = doc.data();
 
-    if (d.scoreUpdated) return; // Already updated
+    if (d.scoreUpdated) return; 
 
     const roundPoints = getRoundPoints(d.playerRoles, isCorrect);
+    
     const historyEntry = {
       timestamp: admin.firestore.Timestamp.now(),
       roles: d.playerRoles,
@@ -82,11 +98,8 @@ exports.updateScores = functions.https.onCall(async (data, context) => {
       result: isCorrect ? 'Chor Caught' : 'Chor Escaped'
     };
 
-    // Prepare updates
-    // 1. Add to History Array
     const newHistory = [...(d.history || []), historyEntry];
     
-    // 2. Increment Scores
     const newTotalScores = { ...d.scores };
     for (const [pid, pts] of Object.entries(roundPoints)) {
       newTotalScores[pid] = (newTotalScores[pid] || 0) + pts;
@@ -96,21 +109,9 @@ exports.updateScores = functions.https.onCall(async (data, context) => {
       scores: newTotalScores,
       history: newHistory,
       scoreUpdated: true,
-      phase: 'roundResult' // Ensure we stay in result phase
+      phase: 'roundResult'
     });
   });
 
   return { success: true };
-});
-
-// --- 3. Reset Game (Optional, if you want a "Full Reset" button) ---
-exports.resetGame = functions.https.onCall(async (data, context) => {
-  const { roomId } = data;
-  await db.collection('rmcs_rooms').doc(roomId).update({
-    phase: 'lobby',
-    scores: {},     // Reset scores
-    history: [],    // Clear history
-    playerRoles: [],
-    guess: null
-  });
 });
