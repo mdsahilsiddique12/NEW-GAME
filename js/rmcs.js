@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", function() {
-  // --- DOM Elements ---
+  // --- DOM Elements & Firebase Initialization ---
   const mainMenu = document.getElementById('mainMenu');
   const createScreen = document.getElementById('createScreen');
   const joinScreen = document.getElementById('joinScreen');
@@ -8,15 +8,17 @@ document.addEventListener("DOMContentLoaded", function() {
   const currentRoomCode = document.getElementById('currentRoomCode');
   const startGameBtn = document.getElementById('startGameBtn');
   const exitLobbyBtn = document.getElementById('exitLobbyBtn');
-  const cancelRoomBtn = document.getElementById('cancelRoomBtn'); // New button
+  const cancelRoomBtn = document.getElementById('cancelRoomBtn');
   const gameTable = document.querySelector('.game-table'); 
-  const gameContent = document.getElementById('gameContent'); // New dynamic UI container
-  const scoreboardEl = document.getElementById('scoreboard'); // New scoreboard container
-  const scoreListEl = document.getElementById('scoreList'); // New score list
+  const gameContent = document.getElementById('gameContent'); 
+  const scoreboardEl = document.getElementById('scoreboard');
+  const scoreListEl = document.getElementById('scoreList');
+  
+  // Initialize Functions reference (must be called after firebase.initializeApp in firebase-config.js)
+  const functions = firebase.functions();
   
   // --- State variables ---
   let unsubscribe = null, roomId = '', playerName = '';
-  // The global 'db' object (Firebase Firestore instance) is assumed to be defined in js/firebase-config.js
 
   function showScreen(show) {
     [mainMenu, createScreen, joinScreen, gameScreen].forEach(screen => screen.classList.remove('active-screen'));
@@ -30,7 +32,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // --- Utility Functions ---
   
-  // Helper to show custom message box (as defined in rmcs.html)
   function showMessage(title, body, onConfirm = null) {
       const messageBox = document.getElementById('messageBox');
       if (!messageBox) return alert(`${title}: ${body}`);
@@ -75,29 +76,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
-  function assignRoles(players) {
-    if (players.length !== 4) return players.map(p => ({ ...p, role: 'Waiting' }));
-    
-    // The role values are points: Raja(1000), Mantri(500), Chor(0), Sipahi(250)
-    // The name values are the display names: Raja, Mantri, Chor, Sipahi
-    const roles = [
-      { name: 'Raja', point: 1000 }, 
-      { name: 'Mantri', point: 500 }, 
-      { name: 'Chor', point: 0 }, 
-      { name: 'Sipahi', point: 250 }
-    ];
-    
-    // Shuffle the roles array
-    let shuffled = [...roles].sort(() => Math.random() - 0.5); 
-    
-    // Assign one unique role to each player
-    return players.map((p, i) => ({ 
-        ...p, 
-        role: shuffled[i].name, 
-        rolePoints: shuffled[i].point, // Store the base points for the role
-        isChor: shuffled[i].name === 'Chor'
-    }));
-  }
+  // NOTE: The assignRoles function has been removed. Role assignment is now handled by the 'startGame' Cloud Function.
 
   function renderAvatarsTable(players, selfId) {
     // Hide game content container and show the 'table' visually
@@ -127,13 +106,11 @@ document.addEventListener("DOMContentLoaded", function() {
       avatar.style.left = (x - 30) + 'px'; 
       avatar.style.top = (y - 30) + 'px';
       
-      // Use an emoji for the player number
       let avatarEmoji;
       if (players[i].id === selfId) {
-          avatarEmoji = 'YOU'; // Text for self
-          avatar.classList.add('bg-indigo-200'); // Highlight self
+          avatarEmoji = 'YOU'; 
+          avatar.classList.add('bg-indigo-200'); 
       } else {
-          // Simple visual differentiation for others
           avatarEmoji = '👤'; 
           avatar.classList.add('bg-gray-100');
       }
@@ -192,7 +169,7 @@ document.addEventListener("DOMContentLoaded", function() {
       document.getElementById('createRoomError').innerText = "Room code must be 4-8 uppercase letters or numbers."; return;
     }
     
-    if (!customRoomCode) customRoomCode = Math.random().toString(36).substring(2, 6).toUpperCase(); // Shorter 4-char code
+    if (!customRoomCode) customRoomCode = Math.random().toString(36).substring(2, 6).toUpperCase(); 
     
     const ref = db.collection('rmcs_rooms').doc(customRoomCode);
     
@@ -221,7 +198,7 @@ document.addEventListener("DOMContentLoaded", function() {
           host: user.uid,
           players: [{ name: playerName, id: user.uid }],
           phase: 'lobby',
-          scores: initialScores, // Initialize global scores
+          scores: initialScores, 
           created: firebase.firestore.FieldValue.serverTimestamp()
         });
         
@@ -329,7 +306,6 @@ document.addEventListener("DOMContentLoaded", function() {
         
         // Check if the current user is still a part of the room
         if (!players.some(p => p.id === selfId)) {
-            // Player was kicked or left gracefully and is still listening
              showMessage("Kicked/Left", "You have been removed from the room.", () => showScreen(mainMenu));
              if (unsubscribe) unsubscribe();
              roomId = '';
@@ -357,28 +333,33 @@ document.addEventListener("DOMContentLoaded", function() {
           renderAvatarsTable(players, selfId); 
           
           if (startGameBtn) {
-            startGameBtn.style.display = 'block'; // Always visible in lobby
+            startGameBtn.style.display = 'block'; 
             startGameBtn.disabled = !(isHost && players.length === 4);
             startGameBtn.textContent = (players.length === 4) ? 'Start Game' : `Waiting for ${4 - players.length} player(s) (Need 4)`;
             
+            // ⭐️ ROBUST SOLUTION: Call Cloud Function to start game/assign roles
             startGameBtn.onclick = async () => {
               if (!(isHost && players.length === 4)) return;
               
-              const roles = assignRoles(players);
-              
-              await roomRef.update({
-                phase: 'reveal',
-                playerRoles: roles,
-                revealed: []
-              });
+              try {
+                  startGameBtn.textContent = 'Starting...';
+                  const startGameFunction = functions.httpsCallable('startGame');
+                  // This is the ONLY place roles are assigned, and it's done securely on the server
+                  await startGameFunction({ roomId: roomCode }); 
+                  // The room listener handles the phase change
+              } catch (error) {
+                  console.error("Error calling startGame function:", error);
+                  showMessage("Error Starting Game", error.message);
+                  startGameBtn.textContent = 'Start Game'; // Reset button
+              }
             };
           }
 
         // --- In-Game Phases (Reveal, Guess, Result) ---
         } else {
             // Hide lobby-specific content (avatars on the table)
-            if (gameContent) gameContent.style.display = 'flex'; // Show dynamic UI container
-            gameTable.querySelector('.table').style.display = 'none'; // Hide the table itself
+            if (gameContent) gameContent.style.display = 'flex'; 
+            gameTable.querySelector('.table').style.display = 'none';
             if (startGameBtn) startGameBtn.style.display = 'none';
             
             if (data.phase === 'reveal') {
@@ -386,17 +367,17 @@ document.addEventListener("DOMContentLoaded", function() {
             } else if (data.phase === 'guess') {
                 showSipahiGuessUI(data.playerRoles, selfId, roomCode);
             } else if (data.phase === "roundResult") {
-                showRoundResult(data, selfId, roomCode, isHost);
+                // Score updates are now handled securely by the makeGuess Cloud Function
+                showRoundResult(data, selfId, roomCode, isHost); 
             }
         }
       });
   }
 
-  // --- Role Reveal Flow ---
+  // --- Role Reveal Flow (Client-side update is fine as roles are already assigned securely) ---
   function showRoleRevealScreen(players, selfId, playerRoles, revealed) {
     if (!gameContent) return;
     
-    // Find my role
     const p = (playerRoles || []).find(p => p.id === selfId);
     if (!p) return; 
     
@@ -407,8 +388,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const rajaRevealed = (revealed || []).some(r => r.role === 'Raja');
     const sipahiRevealed = (revealed || []).some(r => r.role === 'Sipahi');
     
-    // Auto-transition to 'guess' phase
-    if (rajaRevealed && sipahiRevealed) {
+    // Auto-transition to 'guess' phase (Host action, but client can perform this simple update)
+    if (rajaRevealed && sipahiRevealed && p.role === 'Raja') {
         db.collection('rmcs_rooms').doc(roomId).update({
             phase: 'guess',
             revealed: [] // Reset for next round's reveal
@@ -453,6 +434,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const revealBtn = document.getElementById('revealBtn');
     if (isRajaSipahi && !alreadyRevealed && revealBtn) {
       revealBtn.onclick = () => {
+        // Direct write for revealing is fine as it's not a critical game state
         db.collection('rmcs_rooms').doc(roomId).update({
           revealed: firebase.firestore.FieldValue.arrayUnion({id: selfId, role: p.role, name: p.name})
         });
@@ -460,23 +442,18 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
-  // --- Sipahi Guess UI ---
+  // --- Sipahi Guess UI (Calls Cloud Function) ---
   function showSipahiGuessUI(playerRoles, selfId, roomCode) {
     if (!gameContent) return;
     
     const p = (playerRoles || []).find(p => p.id === selfId);
     
-    // Find the Mantri and Chor
-    const mantri = playerRoles.find(pr => pr.role === 'Mantri');
-    const chor = playerRoles.find(pr => pr.role === 'Chor');
-
     // Sipahi cannot guess Raja or Sipahi's own role.
     let targets = playerRoles.filter(pr => pr.role !== 'Raja' && pr.role !== 'Sipahi');
     targets = targets.sort(() => Math.random() - 0.5); // Shuffle order on the UI
 
-    let timer = 60, timerId; // Reduced timer to 60s
+    let timer = 60, timerId; 
     
-    // Only the Sipahi should see the full guessing UI
     if (!p || p.role !== 'Sipahi') {
          gameContent.innerHTML = `
            <div class="text-center mt-12 text-xl font-semibold text-white bg-indigo-700 p-4 rounded-xl shadow-2xl animate-fade-in">
@@ -500,21 +477,23 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
       `;
       
+      const makeGuessFunction = functions.httpsCallable('makeGuess');
+
       // Add event listeners to guess buttons
       targets.forEach(t => {
         const button = gameContent.querySelector(`button[data-id="${t.id}"]`);
         if(button) {
             button.onclick = async () => {
               gameContent.querySelectorAll('.guess-btn').forEach(btn => btn.disabled = true);
-              
-              let isChor = t.role === 'Chor';
               clearInterval(timerId); // Stop the timer
               
-              // Move to the result phase
-              db.collection('rmcs_rooms').doc(roomCode).update({
-                phase: 'roundResult',
-                guess: { sipahiId: p.id, sipahiName: p.name, guessedId: t.id, guessedName: t.name, correct: isChor }
-              });
+              try {
+                  // ⭐️ ROBUST SOLUTION: Call Cloud Function to process guess and update score/phase
+                  await makeGuessFunction({ roomId: roomCode, guessedId: t.id });
+              } catch (error) {
+                  console.error("Error making guess:", error);
+                  showMessage("Guess Error", error.message);
+              }
             };
         }
       });
@@ -536,11 +515,10 @@ document.addEventListener("DOMContentLoaded", function() {
       
       if (timer <= 0) {
         clearInterval(timerId);
-        // Time's up, automatic wrong guess (guessed: null)
-        db.collection('rmcs_rooms').doc(roomCode).update({
-          phase: 'roundResult',
-          guess: { sipahiId: p.id, sipahiName: p.name, guessedId: null, guessedName: 'No Guess', correct: false }
-        });
+        // ⭐️ ROBUST SOLUTION: Call Cloud Function for timeout (guessedId: null)
+        const makeGuessFunction = functions.httpsCallable('makeGuess');
+        makeGuessFunction({ roomId: roomCode, guessedId: null })
+            .catch(error => console.error("Error on timeout guess:", error));
       }
     }, 1000);
   }
@@ -573,20 +551,11 @@ document.addEventListener("DOMContentLoaded", function() {
     const raja = playerRoles.find(p => p.role === 'Raja');
     const sipahi = playerRoles.find(p => p.role === 'Sipahi');
     
-    // Calculate Score for the Round
+    // Calculate Score for display purposes (data is already securely updated in Firestore)
     let roundPoints = {};
-    if (isCorrect) {
-        roundPoints[raja.id] = 1000;
-        roundPoints[mantri.id] = 1000;
-        roundPoints[sipahi.id] = 1000;
-        roundPoints[chor.id] = 0;
-    } else {
-        roundPoints[raja.id] = 0;
-        roundPoints[mantri.id] = 0;
-        roundPoints[sipahi.id] = 0;
-        roundPoints[chor.id] = 1000;
-    }
-    
+    if (isCorrect) { roundPoints[raja.id] = 1000; roundPoints[mantri.id] = 1000; roundPoints[sipahi.id] = 1000; roundPoints[chor.id] = 0; } 
+    else { roundPoints[raja.id] = 0; roundPoints[mantri.id] = 0; roundPoints[sipahi.id] = 0; roundPoints[chor.id] = 1000; }
+
     // Display score and full roles
     let resultsHtml = `
       <div class="text-left w-full max-w-sm mt-4 p-4 bg-gray-100 rounded-xl shadow-inner border border-gray-200">
@@ -613,29 +582,15 @@ document.addEventListener("DOMContentLoaded", function() {
       </div>
     `;
     
-    // **Persistent Score Update (Host-only logic when the screen is rendered)**
-    if (isHost) {
-        // Only run score update once by the host after the result is calculated
-        if (!data.scoreUpdated) { 
-            const newScores = data.scores || {};
-            playerRoles.forEach(p => {
-                newScores[p.id] = (newScores[p.id] || 0) + roundPoints[p.id];
-            });
-            
-            roomRef.update({
-                scores: newScores,
-                scoreUpdated: true // Flag to prevent multiple updates
-            });
-        }
-    }
     
     // Host-only button to reset the room state for a new round
     if (isHost) {
       const nextRoundBtn = gameContent.querySelector('.next-round-btn');
       if (nextRoundBtn) {
         nextRoundBtn.onclick = async () => {
+          // Direct write back to lobby is fine, as 'startGame' will call the secure logic next.
           await roomRef.update({
-            phase: 'lobby', // Back to lobby to allow players to see the updated score before the next round
+            phase: 'lobby', 
             playerRoles: [],
             revealed: [],
             guess: null,
@@ -648,15 +603,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // --- Host - Cancel/Delete Room ---
   async function handleCancelRoom() {
-      // Simple confirmation for a destructive action
       const confirmed = window.confirm("Are you sure you want to delete this room? This cannot be undone.");
       if (!confirmed) return;
       
       const roomRef = db.collection('rmcs_rooms').doc(roomId);
       try {
-          // Delete the room document
           await roomRef.delete();
-          // The listener will handle the screen transition via the !doc.exists check
       } catch(e) {
           console.error("Error deleting room:", e);
           showMessage("Error", "Failed to delete room: " + e.message);
@@ -676,17 +628,12 @@ document.addEventListener("DOMContentLoaded", function() {
             const data = doc.data();
             if (data) {
                 if (data.host === selfId) {
-                    // Host leaves: Delete the room 
-                    await roomRef.delete(); // Listener handles the aftermath
+                    await roomRef.delete(); 
                 } else {
-                    // Non-host leaves: Remove player from the list and their score from the scores object
                     const playerToRemove = data.players.find(p => p.id === selfId);
                     if (playerToRemove) {
                         await roomRef.update({
-                            players: firebase.firestore.FieldValue.arrayRemove(playerToRemove),
-                            // Note: Removing the score field for the user is slightly complex in vanilla update,
-                            // but deleting the room on host exit is more important. For a simple exit, 
-                            // we'll keep the score in the database but remove the player from the list.
+                            players: firebase.firestore.FieldValue.arrayRemove(playerToRemove)
                         });
                     }
                 }
@@ -701,7 +648,7 @@ document.addEventListener("DOMContentLoaded", function() {
     showScreen(mainMenu);
   };
   
-  // Initial anonymous sign-in to ensure a user is available for room creation/joining
+  // Initial anonymous sign-in to ensure a user is available
   if (typeof firebase !== 'undefined' && firebase.auth) {
       firebase.auth().onAuthStateChanged(user => {
           if (!user) {
@@ -715,12 +662,4 @@ document.addEventListener("DOMContentLoaded", function() {
        console.error("Firebase SDK not initialized correctly.");
        showMessage("System Error", "Firebase SDK is missing. Check your HTML imports.");
   }
-
-  /* ** IMPORTANT SECURITY NOTE **
-  The current implementation relies on client-side logic (the host) to perform critical updates like 
-  role assignment, score updates, and phase changes. In a production environment, this is highly insecure 
-  as any client can manipulate the game state. For robust, cheat-proof multiplayer, all critical game 
-  logic (role assignment, score calculation, phase transitions) must be moved to **Firebase Cloud Functions 
-  (server-side)**, and the client should only send basic actions (e.g., 'start game', 'make guess').
-  */
 });
