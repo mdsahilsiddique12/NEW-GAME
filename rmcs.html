@@ -5,17 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Raja Mantri Chor Sipahi</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/styles.css"> 
   <style>
+    /* NOTE: Tailwind CSS in rmcs.html has been replaced by the styles.css file provided in the zip for an enhanced look.
+       Only game-specific/utility styles are kept here. */
     :root { font-family: 'Inter', sans-serif; }
+    
+    /* The centered-bg class is updated by styles.css */
     .centered-bg {
-      min-height: 100vh;
+      /* Overriding styles.css for the menu block placement in mobile view */
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+      min-height: 100vh;
       padding: 1rem;
     }
+
     .logo-block {
       margin-bottom: 2rem;
       text-align: center;
@@ -23,7 +29,7 @@
     .menu-screen {
       display: none;
       width: 100%;
-      max-width: 380px;
+      max-width: 380px; /* Reduced max-width for cleaner mobile menu */
       padding: 2rem;
       background-color: #ffffff;
       border-radius: 1.5rem;
@@ -31,20 +37,8 @@
       animation: fadeIn 0.5s ease-out;
     }
     .active-screen { display: flex; flex-direction: column; gap: 1rem; }
-    .giant-btn, .confirm-btn, .back-btn {
-      @apply w-full py-4 text-xl font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 hover:shadow-2xl;
-    }
-    .create-btn { @apply bg-indigo-600 text-white hover:bg-indigo-700; }
-    .join-btn { @apply bg-green-500 text-white hover:bg-green-600; }
-    .confirm-btn { @apply bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700; }
-    .back-btn { @apply bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300; }
-    .input-field {
-      @apply w-full p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 transition-colors duration-200 shadow-sm hover:shadow-md focus:ring-4 focus:ring-indigo-200;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    
+    /* Tailwind utility classes have been moved to styles.css's giant-btn, confirm-btn, back-btn, input-field */
     .room-code-display {
       @apply bg-indigo-50 border border-indigo-200 text-indigo-800 p-3 rounded-lg flex items-center justify-between font-mono text-xl select-none;
     }
@@ -57,13 +51,19 @@
     #messageBoxContent {
       @apply bg-white p-8 rounded-xl shadow-2xl max-w-sm text-center transform scale-100 transition-transform duration-300;
     }
-    /* 3D Table View */
+    
+    /* 3D Table View for Lobby - Enhanced for better visual experience */
     .game-table {
       position: relative;
       width: 300px;
       height: 300px;
       margin: 2rem auto;
       perspective: 1000px;
+      /* Add game content wrapper for dynamic UI */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
     .table {
       position: absolute;
@@ -73,6 +73,8 @@
       border-radius: 50%;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
       transform-style: preserve-3d;
+      /* Ensure table is always at the back */
+      z-index: 1;
     }
     .avatar {
       position: absolute;
@@ -85,6 +87,7 @@
       justify-content: center;
       font-size: 2rem;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      z-index: 2; /* Avatars on top of the table */
     }
     .avatar-name {
       position: absolute;
@@ -94,6 +97,20 @@
       font-size: 0.8rem;
       font-weight: bold;
       color: #333;
+      white-space: nowrap;
+    }
+    /* Dynamic Game UI container - covers the table for in-game phases */
+    #gameContent {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 5;
     }
   </style>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -127,10 +144,10 @@
       <div id="createScreen" class="menu-screen">
         <h2 class="text-2xl font-bold mb-4 text-gray-800">Create New Room</h2>
         <input type="text" id="createPlayerName" class="input-field fancy" placeholder="Enter your name" />
-        <input type="text" id="createRoomCode" maxlength="8" class="input-field fancy" placeholder="Room code (optional, 8 chars)" />
+        <input type="text" id="createRoomCode" maxlength="8" class="input-field fancy" placeholder="Room code (optional, 4-8 chars)" />
         <button id="createRoomFinal" class="confirm-btn">Create</button>
         <button class="back-btn" data-target="mainMenu">Back</button>
-        <div id="createRoomError" class="error-msg text-red-500 mt-2 text-sm"></div>
+        <div id="createRoomError" class="error-msg"></div>
       </div>
       <div id="joinScreen" class="menu-screen">
         <h2 class="text-2xl font-bold mb-4 text-gray-800">Join Room</h2>
@@ -138,24 +155,46 @@
         <input type="text" id="joinRoomCode" maxlength="8" class="input-field fancy uppercase" placeholder="Enter room code" />
         <button id="joinRoomFinal" class="confirm-btn">Join</button>
         <button class="back-btn" data-target="mainMenu">Back</button>
-        <div id="joinRoomError" class="error-msg text-red-500 mt-2 text-sm"></div>
+        <div id="joinRoomError" class="error-msg"></div>
       </div>
+
       <div id="gameScreen" class="menu-screen">
         <h2 class="text-3xl font-bold mb-4 text-gray-800">Room Lobby</h2>
         <div id="roomCodeContainer" class="mb-4">
           <p class="text-gray-600 mb-2 font-semibold">Share this Room Code:</p>
-          <div id="currentRoomCode" class="room-code-display">
-            </div>
+          <div id="currentRoomCode" class="room-code-display"></div>
         </div>
-        <h3 class="text-xl font-semibold mb-3 text-gray-700">Players in Room:</h3>
-        <div class="game-table">
-          <div class="table"></div>
+        
+        <div class="flex w-full justify-between gap-4">
+          
+          <div id="scoreboard" class="flex-1 bg-white p-4 rounded-xl shadow-lg border border-gray-100 hidden md:block" style="max-width: 150px; min-height: 200px;">
+            <h3 class="text-lg font-bold mb-2 text-gray-800 border-b pb-1">Scores</h3>
+            <div id="scoreList" class="text-sm font-semibold text-gray-600">
+              </div>
           </div>
-        <button id="startGameBtn" class="confirm-btn">Start Game</button>
-        <button id="exitLobbyBtn" class="back-btn mt-4">Exit Lobby</button>
+          
+          <div class="flex-none" style="width: 300px; height: 300px;">
+            <div class="game-table">
+              <div class="table"></div>
+              <div id="gameContent"></div> 
+            </div>
+          </div>
+          
+          <div class="flex-1 hidden md:block">
+             <h3 class="text-xl font-semibold mb-3 text-gray-700">Players:</h3>
+             <div id="playersList" class="text-lg font-mono text-gray-600"></div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2 mt-6 w-full max-w-xs">
+            <button id="startGameBtn" class="confirm-btn">Start Game</button>
+            <button id="cancelRoomBtn" class="back-btn" style="display:none; background:#ff4e76; color:white;">Cancel/Delete Room</button>
+            <button id="exitLobbyBtn" class="back-btn">Exit Lobby</button>
+        </div>
       </div>
     </div>
   </div>
+  
   <div id="messageBox">
     <div id="messageBoxContent">
       <h3 id="messageBoxTitle" class="text-2xl font-bold mb-3">Message</h3>
