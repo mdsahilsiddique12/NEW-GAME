@@ -8,13 +8,14 @@ document.addEventListener("DOMContentLoaded", function() {
   const currentRoomCode = document.getElementById('currentRoomCode');
   const startGameBtn = document.getElementById('startGameBtn');
   const exitLobbyBtn = document.getElementById('exitLobbyBtn');
-  const cancelRoomBtn = document.getElementById('cancelRoomBtn');
+  const cancelRoomBtn = document.getElementById('cancelRoomBtn'); // Must be in HTML
   const gameTable = document.querySelector('.game-table'); 
-  const gameContent = document.getElementById('gameContent'); 
+  const gameContent = document.getElementById('gameContent'); // Must be in HTML
   const scoreboardEl = document.getElementById('scoreboard');
   const scoreListEl = document.getElementById('scoreList');
   
   // Initialize Functions reference (must be called after firebase.initializeApp in firebase-config.js)
+  // ⚠️ NOTE: This line requires the firebase-functions.js SDK to be imported in your HTML.
   const functions = firebase.functions();
   
   // --- State variables ---
@@ -250,10 +251,15 @@ document.addEventListener("DOMContentLoaded", function() {
           }
         }
         
-        if (data.players.some(p => p.name === playerName)) {
-             document.getElementById('joinRoomError').innerText = "A player with this name is already in the room. Choose another name."; 
+        // **FIX for Rejoining Bug: Allow rejoining if the player is the same user ID**
+        const playerWithSameName = data.players.find(p => p.name === playerName);
+        
+        // Block only if the name is taken by a *different* player ID
+        if (playerWithSameName && playerWithSameName.id !== user.uid) {
+             document.getElementById('joinRoomError').innerText = "A different player with this name is already in the room. Choose another name."; 
              return;
         }
+        // **END FIX**
         
         const isRejoining = data.players.some(p => p.id === user.uid);
         
@@ -389,7 +395,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const sipahiRevealed = (revealed || []).some(r => r.role === 'Sipahi');
     
     // Auto-transition to 'guess' phase (Host action, but client can perform this simple update)
-    if (rajaRevealed && sipahiRevealed && p.role === 'Raja') {
+    if (rajaRevealed && sipahiReveahi && p.role === 'Raja') {
         db.collection('rmcs_rooms').doc(roomId).update({
             phase: 'guess',
             revealed: [] // Reset for next round's reveal
@@ -479,10 +485,13 @@ document.addEventListener("DOMContentLoaded", function() {
       
       const makeGuessFunction = functions.httpsCallable('makeGuess');
 
+      // **FIX for TypeError: Use querySelectorAll once after innerHTML is set**
+      const guessButtons = gameContent.querySelectorAll('.guess-btn');
+
       // Add event listeners to guess buttons
-      targets.forEach(t => {
-        const button = gameContent.querySelector(`button[data-id="${t.id}"]`);
-        if(button) {
+      guessButtons.forEach(button => {
+        const t = targets.find(target => target.id === button.dataset.id);
+        if(t) {
             button.onclick = async () => {
               gameContent.querySelectorAll('.guess-btn').forEach(btn => btn.disabled = true);
               clearInterval(timerId); // Stop the timer
@@ -497,6 +506,7 @@ document.addEventListener("DOMContentLoaded", function() {
             };
         }
       });
+      // **END FIX**
     }
     
     function timerFormat(t) {
