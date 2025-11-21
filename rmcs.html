@@ -157,8 +157,22 @@
         <h2 class="text-3xl font-bold mb-4 text-gray-800">Room Lobby</h2>
         <div id="roomCodeContainer" class="mb-4">
           <p class="text-gray-600 mb-2 font-semibold">Share this Room Code:</p>
-          <div id="currentRoomCode" class="room-code-display"></div>
+          <div id="currentRoomCode" class="room-code-display">
+          </div>
         </div>
+        <h3 class="text-xl font-semibold mb-3 text-gray-700">Players in Room:</h3>
+        <div class="game-table">
+          <div class="table"></div>
+        </div>
+        
+  <div id="gameContent" class="flex-grow flex flex-col w-full"></div>
+  
+  <button id="startGameBtn" class="confirm-btn">Start Game</button>
+  
+  <button id="cancelRoomBtn" class="confirm-btn !bg-gray-500 hover:!bg-gray-600 mt-2" style="display:none;">Cancel/Delete Room</button>
+  
+  <button id="exitLobbyBtn" class="back-btn mt-4">Exit Lobby</button>
+</div>
         
         <div class="flex w-full justify-between gap-4">
           
