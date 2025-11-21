@@ -4,152 +4,402 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Raja Mantri Chor Sipahi</title>
+  
   <!-- Load Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Load Inter font family -->
+  
+  <!-- Internal CSS for Custom Styling -->
   <style>
-    :root { font-family: 'Inter', sans-serif; }
-    .centered-bg {
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+    :root {
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --glass-bg: rgba(255, 255, 255, 0.95);
+      --glass-border: rgba(255, 255, 255, 0.4);
+      --shadow-soft: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--primary-gradient);
       min-height: 100vh;
+      margin: 0;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
-      padding: 1rem;
+      overflow-x: hidden;
     }
-    .logo-block {
-      margin-bottom: 2rem;
-      text-align: center;
+
+    /* Decorative Background Shapes */
+    .bg-shape {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      z-index: 0;
+      animation: float 6s ease-in-out infinite;
     }
-    .menu-screen {
-      display: none;
+    .shape-1 {
+      top: -10%; left: -10%; width: 300px; height: 300px;
+      background: rgba(255, 255, 255, 0.3);
+    }
+    .shape-2 {
+      bottom: -10%; right: -10%; width: 400px; height: 400px;
+      background: rgba(255, 255, 255, 0.2);
+      animation-delay: 2s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(20px); }
+    }
+
+    /* Main Container */
+    .app-container {
+      position: relative;
+      z-index: 10;
       width: 100%;
-      max-width: 380px;
-      padding: 2rem;
-      background-color: #ffffff;
-      border-radius: 1.5rem;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      animation: fadeIn 0.5s ease-out;
+      max-width: 420px;
+      padding: 20px;
     }
-    .active-screen { display: flex; flex-direction: column; gap: 1rem; }
-    .giant-btn, .confirm-btn, .back-btn {
-      @apply w-full py-4 text-xl font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-95 hover:shadow-2xl;
+
+    /* Glassmorphism Card Style */
+    .menu-screen {
+      display: none; /* Controlled via JS */
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 24px;
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--shadow-soft);
+      padding: 2.5rem 2rem;
+      text-align: center;
+      animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .create-btn { @apply bg-indigo-600 text-white hover:bg-indigo-700; }
-    .join-btn { @apply bg-green-500 text-white hover:bg-green-600; }
-    .confirm-btn { @apply bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700; }
-    .back-btn { @apply bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300; }
+
+    .active-screen {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Logo Styling */
+    .logo-container {
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+    .main-logo {
+      filter: drop-shadow(0 10px 15px rgba(118, 75, 162, 0.3));
+      animation: pulseLogo 3s infinite;
+    }
+
+    @keyframes pulseLogo {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    /* Typography */
+    h1 {
+      background: linear-gradient(to right, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-top: 1rem;
+    }
+
+    h2 {
+      color: #2d3748;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Buttons */
+    .btn {
+      position: relative;
+      width: 100%;
+      padding: 1rem;
+      border: none;
+      border-radius: 16px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+    .btn:active { transform: translateY(1px); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(118, 75, 162, 0.4);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    }
+
+    .btn-danger {
+      background: #fed7d7;
+      color: #c53030;
+    }
+    .btn-danger:hover { background: #feb2b2; }
+
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+    .btn-secondary:hover { background: #cbd5e0; }
+
+    /* Inputs */
+    .input-group { position: relative; width: 100%; }
     .input-field {
-      @apply w-full p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 transition-colors duration-200 shadow-sm hover:shadow-md focus:ring-4 focus:ring-indigo-200;
+      width: 100%;
+      padding: 1rem 1rem 1rem 3rem; /* Space for icon */
+      border: 2px solid #e2e8f0;
+      border-radius: 16px;
+      font-size: 1rem;
+      background: #f7fafc;
+      transition: all 0.3s;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    .input-field:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
     }
-    .room-code-display {
-      @apply bg-indigo-50 border border-indigo-200 text-indigo-800 p-3 rounded-lg flex items-center justify-between font-mono text-xl select-none;
+    .input-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #a0aec0;
+      font-size: 1.2rem;
     }
-    .copy-btn {
-      @apply ml-3 p-2 bg-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-300 transition-colors duration-200;
+
+    /* Room Code Box */
+    .room-code-box {
+      background: #ebf4ff;
+      border: 2px dashed #667eea;
+      border-radius: 12px;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
     }
+    .code-text {
+      font-family: 'Courier New', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #4c51bf;
+      letter-spacing: 2px;
+    }
+
+    /* Player List */
+    .player-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      text-align: left;
+    }
+    .player-item {
+      background: white;
+      padding: 0.8rem 1rem;
+      border-radius: 12px;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+      color: #4a5568;
+    }
+    .player-avatar {
+      width: 32px; height: 32px;
+      background: #edf2f7;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    /* Modal */
     #messageBox {
-      @apply fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center hidden;
+      position: fixed; inset: 0; z-index: 50;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center; justify-content: center;
     }
     #messageBoxContent {
-      @apply bg-white p-8 rounded-xl shadow-2xl max-w-sm text-center transform scale-100 transition-transform duration-300;
+      background: white;
+      padding: 2rem;
+      border-radius: 24px;
+      text-align: center;
+      max-width: 320px;
+      width: 90%;
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
   </style>
-  <!-- Firebase Setup Imports -->
+
+  <!-- Firebase Setup -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/rmcs.js"></script>
+  <script src="js/rmcs.js?v=new"></script> <!-- Cache busting added -->
 </head>
 <body>
-  <div class="centered-bg">
-    <!-- LOGO BLOCK -->
-    <div class="logo-block">
-      <svg class="main-logo w-24 h-24 sm:w-32 sm:h-32 text-indigo-700 mx-auto" 
-           viewBox="0 0 100 100" 
-           fill="none" 
-           xmlns="http://www.w3.org/2000/svg" 
-           alt="Raja Mantri Chor Sipahi Logo">
-        <rect x="0" y="0" width="100" height="100" rx="20" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="2"/>
-        <path d="M50 15 L40 35 L60 35 L50 15 Z M40 35 L45 45 L55 45 L60 35 Z" fill="#FFD700" stroke="#CCAA00" stroke-width="3"/>
-        <rect x="15" y="55" width="30" height="25" rx="5" fill="#4CAF50" stroke="#388E3C" stroke-width="3"/>
-        <circle cx="70" cy="67" r="15" fill="#333333" stroke="#111111" stroke-width="3"/>
-        <path d="M65 67 L75 67 M70 52 L70 82" stroke="#F0F0F0" stroke-width="2" stroke-linecap="round"/>
-        <path d="M50 50 L35 70 L65 70 L50 50 Z M35 70 L35 85 L65 85 L65 70 Z" fill="#2196F3" stroke="#1976D2" stroke-width="3"/>
-        <circle cx="50" cy="50" r="5" fill="#CCAA00"/>
-      </svg>
-      <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-800 mt-5 tracking-wide">Raja Mantri Chor Sipahi</h1>
-    </div>
-    <!-- END LOGO BLOCK -->
+
+  <!-- Background Shapes -->
+  <div class="bg-shape shape-1"></div>
+  <div class="bg-shape shape-2"></div>
+
+  <div class="app-container">
     
+    <!-- Screens Wrapper -->
     <div id="screens">
-      <!-- Main Menu -->
+
+      <!-- 1. Main Menu -->
       <div id="mainMenu" class="menu-screen active-screen">
-        <button id="createRoomBtn" class="giant-btn create-btn">Create Room</button>
-        <button id="joinRoomBtn" class="giant-btn join-btn">Join Room</button>
+        <div class="logo-container">
+          <svg class="main-logo w-24 h-24 mx-auto text-indigo-600" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z"/>
+          </svg>
+          <h1>Raja Mantri<br>Chor Sipahi</h1>
+        </div>
+        
+        <button id="createRoomBtn" class="btn btn-primary create-btn">
+          <span>👑</span> Create New Room
+        </button>
+        <button id="joinRoomBtn" class="btn btn-success join-btn">
+          <span>🚀</span> Join Existing Room
+        </button>
       </div>
-      <!-- Create Room Screen -->
+
+      <!-- 2. Create Room -->
       <div id="createScreen" class="menu-screen">
-        <h2 class="text-2xl font-bold mb-4 text-gray-800">Create New Room</h2>
-        <input type="text" id="createPlayerName" class="input-field fancy" placeholder="Enter your name" />
-        <input type="text" id="createRoomCode" maxlength="8" class="input-field fancy" placeholder="Room code (optional, 8 chars)" />
-        <button id="createRoomFinal" class="confirm-btn">Create</button>
-        <button class="back-btn" data-target="mainMenu">Back</button>
-        <div id="createRoomError" class="error-msg text-red-500 mt-2 text-sm"></div>
+        <div class="text-left mb-4">
+          <h2>Create Room</h2>
+          <p class="text-gray-500 text-sm">Set up a new game lobby.</p>
+        </div>
+        
+        <div class="input-group">
+          <span class="input-icon">👤</span>
+          <input type="text" id="createPlayerName" class="input-field" placeholder="Your Nickname" />
+        </div>
+        
+        <div class="input-group">
+          <span class="input-icon">🔒</span>
+          <input type="text" id="createRoomCode" maxlength="8" class="input-field uppercase" placeholder="Room Code (Optional)" />
+        </div>
+
+        <div id="createRoomError" class="text-red-500 text-sm font-semibold hidden"></div>
+
+        <div class="flex flex-col gap-3 mt-4">
+          <button id="createRoomFinal" class="btn btn-primary">Create Lobby</button>
+          <button class="btn btn-secondary back-btn" data-target="mainMenu">Cancel</button>
+        </div>
       </div>
-      <!-- Join Room Screen -->
+
+      <!-- 3. Join Room -->
       <div id="joinScreen" class="menu-screen">
-        <h2 class="text-2xl font-bold mb-4 text-gray-800">Join Room</h2>
-        <input type="text" id="joinPlayerName" class="input-field fancy" placeholder="Enter your name" />
-        <input type="text" id="joinRoomCode" maxlength="8" class="input-field fancy uppercase" placeholder="Enter room code" />
-        <button id="joinRoomFinal" class="confirm-btn">Join</button>
-        <button class="back-btn" data-target="mainMenu">Back</button>
-        <div id="joinRoomError" class="error-msg text-red-500 mt-2 text-sm"></div>
+        <div class="text-left mb-4">
+          <h2>Join Room</h2>
+          <p class="text-gray-500 text-sm">Enter code to join friends.</p>
+        </div>
+
+        <div class="input-group">
+          <span class="input-icon">👤</span>
+          <input type="text" id="joinPlayerName" class="input-field" placeholder="Your Nickname" />
+        </div>
+
+        <div class="input-group">
+          <span class="input-icon">🔑</span>
+          <input type="text" id="joinRoomCode" maxlength="8" class="input-field uppercase" placeholder="Enter Room Code" />
+        </div>
+
+        <div id="joinRoomError" class="text-red-500 text-sm font-semibold hidden"></div>
+
+        <div class="flex flex-col gap-3 mt-4">
+          <button id="joinRoomFinal" class="btn btn-success">Join Game</button>
+          <button class="btn btn-secondary back-btn" data-target="mainMenu">Back</button>
+        </div>
       </div>
-      <!-- Game Screen (Lobby) -->
+
+      <!-- 4. Lobby Screen -->
       <div id="gameScreen" class="menu-screen">
-        <h2 class="text-3xl font-bold mb-4 text-gray-800">Room Lobby</h2>
-        <div id="roomCodeContainer" class="mb-4">
-          <p class="text-gray-600 mb-2 font-semibold">Share this Room Code:</p>
-          <div id="currentRoomCode" class="room-code-display">
-            <!-- Code and Copy Button will be populated by JS -->
+        <div class="logo-container mb-0">
+          <h2>Game Lobby</h2>
+          <p class="text-gray-500 text-sm">Waiting for players...</p>
+        </div>
+
+        <div class="room-code-box">
+          <div id="currentRoomCode" class="w-full flex justify-between items-center">
+            <!-- JS injects code here -->
           </div>
         </div>
-        <div id="scenarioSection" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-          <h3 class="text-lg font-bold mb-2 text-yellow-800 flex items-center">
-            ✨ Game Scenario Creator
+
+        <!-- Scenario Generator (Optional Feature) -->
+        <div id="scenarioSection" class="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
+          <h3 class="text-sm font-bold text-yellow-700 mb-1 flex items-center gap-2">
+            🎭 Scenario
           </h3>
-          <div id="scenarioOutput" class="text-gray-700 text-sm italic mb-3 min-h-[3rem]">
-            No scenario generated yet. Click the button to set the stage!
+          <div id="scenarioOutput" class="text-gray-600 text-xs italic mb-2">
+            Click below to set the scene!
           </div>
-          <button id="generateScenarioBtn" class="w-full py-2 text-md font-semibold rounded-lg bg-yellow-400 text-yellow-900 transition-all duration-300 hover:bg-yellow-500 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed">
-            ✨ Generate Dramatic Scenario
+          <button id="generateScenarioBtn" class="btn btn-sm bg-yellow-400 text-yellow-900 text-xs py-2 rounded-lg w-full hover:bg-yellow-500">
+            Generate Scenario
           </button>
         </div>
-        <h3 class="text-xl font-semibold mb-3 text-gray-700">Players in Room:</h3>
-        <ul id="playersList" class="space-y-2 mb-6 p-3 bg-gray-50 rounded-lg border">
-          <li class="text-gray-500 text-center">Loading players...</li>
+
+        <div class="w-full text-left mb-2">
+          <h3 class="text-sm font-bold text-gray-600 uppercase">Players</h3>
+        </div>
+        
+        <ul id="playersList" class="player-list w-full">
+          <!-- JS injects players here -->
         </ul>
-        <button id="startGameBtn" class="confirm-btn">Start Game</button>
-        <button id="exitLobbyBtn" class="back-btn mt-4">Exit Lobby</button>
+
+        <div class="flex flex-col gap-3 mt-6">
+          <button id="startGameBtn" class="btn btn-primary">Start Game</button>
+          <button id="exitLobbyBtn" class="btn btn-danger">Exit Lobby</button>
+        </div>
       </div>
+
     </div>
   </div>
-  <!-- Custom Message Box/Overlay -->
+
+  <!-- Message Overlay -->
   <div id="messageBox">
     <div id="messageBoxContent">
-      <h3 id="messageBoxTitle" class="text-2xl font-bold mb-3">Message</h3>
-      <p id="messageBoxBody" class="text-gray-700 mb-6"></p>
-      <button id="messageBoxClose" class="confirm-btn bg-indigo-600 hover:bg-indigo-700 !py-2 !px-6 !text-base">OK</button>
+      <h3 id="messageBoxTitle" class="text-xl font-bold mb-2 text-gray-800">Alert</h3>
+      <p id="messageBoxBody" class="text-gray-600 mb-6 text-sm"></p>
+      <button id="messageBoxClose" class="btn btn-primary py-2">Okay</button>
     </div>
   </div>
-  <script src="js/rmcs.js"></script>
+
 </body>
 </html>
