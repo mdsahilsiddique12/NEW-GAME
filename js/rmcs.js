@@ -26,6 +26,26 @@ document.addEventListener("DOMContentLoaded", function () {
   const messageBoxBody  = document.getElementById('messageBoxBody');
   const messageBoxClose = document.getElementById('messageBoxClose');
 
+  //Next Round + History Table
+  const historyModal = document.getElementById('historyModal');
+  const openHistoryBtn = document.getElementById('openHistoryBtn');
+  const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+
+  if(openHistoryBtn) openHistoryBtn.onclick = () => {
+    if(historyModal) {
+        historyModal.classList.remove('hidden');
+        historyModal.style.display = 'flex';
+    }
+  };
+  
+  if(closeHistoryBtn) closeHistoryBtn.onclick = () => {
+    if(historyModal) {
+        historyModal.classList.add('hidden');
+        historyModal.style.display = 'none';
+    }
+  };
+
+
   // Firebase Functions SDK
   const functions = (typeof firebase !== 'undefined' && firebase.functions)
     ? firebase.functions()
@@ -1152,6 +1172,8 @@ document.addEventListener("DOMContentLoaded", function () {
       renderRoomCode(roomCode);
       renderPlayersList(players);
       renderScoreboard(scores, players);
+      renderHistoryTable(data.history || [], players);
+
 
       const isHost = selfId === data.host;
 
@@ -1450,17 +1472,14 @@ document.addEventListener("DOMContentLoaded", function () {
       const nextRoundBtn = gameContent.querySelector('.next-round-btn');
       if (nextRoundBtn) {
         nextRoundBtn.onclick = async () => {
-          await roomRef.update({
-            phase: 'lobby',
-            playerRoles: [],
-            revealed: [],
-            guess: null,
-            scoreUpdated: false
-          });
+            // Use the backend function to reset the round properly
+            const startFn = functions.httpsCallable('startGame'); 
+            nextRoundBtn.textContent = "INITIALIZING...";
+            await startFn({ roomId }); 
         };
       }
     }
-  }
+
 
   // --- Host: Cancel / Delete Room ---
   async function handleCancelRoom() {
@@ -1510,6 +1529,66 @@ document.addEventListener("DOMContentLoaded", function () {
       playerName = '';
       showScreen(mainMenu);
     };
+  }
+  // --- Render History Table ---
+  function renderHistoryTable(history, players) {
+    const historyContent = document.getElementById('historyContent');
+    if (!historyContent) return;
+    
+    if (!history || history.length === 0) {
+      historyContent.innerHTML = '<p class="text-gray-500 text-center p-4">No rounds played yet.</p>';
+      return;
+    }
+
+    let html = `
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="text-xs text-gray-400 border-b border-gray-700">
+            <th class="p-2">R#</th>
+            <th class="p-2">Raja</th>
+            <th class="p-2">Mantri</th>
+            <th class="p-2">Sipahi</th>
+            <th class="p-2">Chor</th>
+          </tr>
+        </thead>
+        <tbody class="text-sm font-mono text-gray-300">
+    `;
+
+    history.forEach((round, index) => {
+      const getRoleName = (r) => {
+        const p = round.roles.find(rp => rp.role === r);
+        return p ? p.name : '-';
+      };
+      const getRolePoints = (r) => {
+        const p = round.roles.find(rp => rp.role === r);
+        return p ? round.points[p.id] : 0;
+      };
+
+      html += `
+        <tr class="border-b border-gray-800 hover:bg-white/5">
+          <td class="p-2 text-neon-blue font-bold">${index + 1}</td>
+          <td class="p-2">
+            <div class="text-yellow-300">${getRoleName('Raja')}</div>
+            <div class="text-[10px] text-gray-500">+${getRolePoints('Raja')}</div>
+          </td>
+          <td class="p-2">
+            <div class="text-fuchsia-300">${getRoleName('Mantri')}</div>
+            <div class="text-[10px] text-gray-500">+${getRolePoints('Mantri')}</div>
+          </td>
+          <td class="p-2">
+            <div class="text-cyan-300">${getRoleName('Sipahi')}</div>
+            <div class="text-[10px] text-gray-500">+${getRolePoints('Sipahi')}</div>
+          </td>
+          <td class="p-2">
+            <div class="text-rose-400">${getRoleName('Chor')}</div>
+            <div class="text-[10px] text-gray-500">+${getRolePoints('Chor')}</div>
+          </td>
+        </tr>
+      `;
+    });
+
+    html += '</tbody></table>';
+    historyContent.innerHTML = html;
   }
 
   // --- Initial anonymous sign-in ---
