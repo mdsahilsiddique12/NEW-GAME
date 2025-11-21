@@ -489,10 +489,14 @@ document.addEventListener("DOMContentLoaded", function () {
             try {
               const startFn = functions.httpsCallable('startGame');
               startGameBtn.textContent = 'INITIALIZING...';
-              await startFn({ roomId: roomId });
+              
+              // CORRECTED: Use roomCode from the function's scope
+              await startFn({ roomId: roomCode }); 
+              
             } catch (error) {
               console.error("Error starting game:", error);
               showMessage("ERROR", error.message);
+              // Restore button text on failure
               startGameBtn.textContent = 'INITIATE SEQUENCE';
             }
           };
