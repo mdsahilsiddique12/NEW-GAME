@@ -302,7 +302,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="flex justify-between items-center border-b border-gray-500 pb-1 mb-2">
           <span class="text-xs text-gray-300 uppercase tracking-wider">Mission Report</span>
         </div>
-        <div class="space-y-3 text-base font-bold font-mono">
+        <div class="space-y-2 text-base font-bold font-mono">
           <div class="flex justify-between items-center bg-white/5 p-2 rounded">
             <span class="text-yellow-300 drop-shadow-sm">👑 RAJA</span> 
             <span class="text-white tracking-wide">${roleMap['Raja'] || '-'}</span>
@@ -324,8 +324,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // --- Button Logic ---
     const hostControlsHtml = isHost 
-      ? `<button id="nextRoundBtn" class="cyber-btn w-full mt-6 py-3 shadow-[0_0_15px_rgba(0,243,255,0.4)]">REBOOT SYSTEM</button>` 
-      : `<div class="mt-6 text-xs text-gray-500 animate-pulse text-center">WAITING FOR HOST REBOOT...</div>`;
+      ? `<button id="nextRoundBtn" class="cyber-btn w-full mt-4 py-3 shadow-[0_0_15px_rgba(0,243,255,0.4)]">REBOOT SYSTEM</button>` 
+      : `<div class="mt-4 text-xs text-gray-500 animate-pulse text-center">WAITING FOR HOST REBOOT...</div>`;
 
     gameContent.innerHTML = `
       <div class="flex flex-col items-center w-full animate-fade-in px-2">
