@@ -64,9 +64,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const points = {};
     playerRoles.forEach(p => {
         if (p.role === 'Raja') points[p.id] = 1000;
-        else if (p.role === 'Mantri') points[p.id] = 500;
-        else if (p.role === 'Sipahi') points[p.id] = isCorrect ? 250 : 0;
-        else if (p.role === 'Chor') points[p.id] = isCorrect ? 0 : 250;
+        else if (p.role === 'Mantri') points[p.id] = 800;
+        else if (p.role === 'Sipahi') points[p.id] = isCorrect ? 500 : 0;
+        else if (p.role === 'Chor') points[p.id] = isCorrect ? 0 : 500;
     });
     return points;
   }
