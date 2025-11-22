@@ -282,10 +282,45 @@
     #scoreList .flex {
       border-bottom-color: #222;
     }
-      @keyframes loadingBar {
-        0% { width: 0%; margin-left: 0; }
-        50% { width: 100%; margin-left: 0; }
-        100% { width: 0%; margin-left: 100%; }
+    @keyframes loadingBar {
+      0% { width: 0%; margin-left: 0; }
+      50% { width: 100%; margin-left: 0; }
+      100% { width: 0%; margin-left: 100%; }
+    }
+    /* --- Footer Credit Styling --- */
+    footer {
+      position: fixed; /* Fixes it to the bottom */
+      bottom: 10px;
+      width: 100%;
+      text-align: center;
+      font-family: 'Rajdhani', sans-serif;
+      z-index: 50;
+      pointer-events: none; /* Lets you click through it if needed */
+    }
+    .credit-box {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      opacity: 0.5; /* Subtle by default */
+      transition: 0.3s;
+      background: rgba(0,0,0,0.6); /* Dark background for readability */
+      padding: 4px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      pointer-events: auto; /* Makes the footer itself hoverable */
+    }
+    .credit-box:hover { opacity: 1; border-color: var(--neon-blue); }
+    
+    .credit-name {
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    .credit-role {
+      font-size: 0.6rem;
+      color: var(--neon-blue);
+      margin-top: 1px;
     }
 
   
@@ -444,6 +479,13 @@
        <div class="h-full bg-neon-green animate-[loadingBar_2s_ease-in-out_infinite]"></div>
     </div>
   </div>
+  <!-- Footer Credit -->
+  <footer>
+    <div class="credit-box">
+      <span class="credit-name">Architected by Sahil</span>
+      <span class="credit-role">Full Stack Developer</span>
+    </div>
+  </footer>
 
 
 </body>
