@@ -384,7 +384,7 @@
                <button id="startGameBtn" class="cyber-btn w-full shadow-[0_0_20px_rgba(0,243,255,0.3)]">
                  INITIATE SEQUENCE
                </button>
-               <button id="cancelRoomBtn" class="text-xs text-red-600 hover:text-red-400 tracking-widest uppercase font-bold py-2 hidden">
+               <button id="cancelRoomBtn" class="text-xs text-red-600 hover:text-red-400 tracking-widest uppercase font-bold py-2 hidden mt-14">
                  [ TERMINATE SESSION ]
                </button>
             </div>
@@ -428,6 +428,17 @@
       <button id="messageBoxClose" class="cyber-btn w-full">ACKNOWLEDGE</button>
     </div>
   </div>
+
+    <!-- Round Transition Overlay -->
+  <div id="roundTransition" class="fixed inset-0 z-[999] hidden flex-col items-center justify-center bg-black pointer-events-none">
+    <div class="text-neon-blue font-cyber text-6xl md:text-8xl font-black tracking-[0.2em] drop-shadow-[0_0_30px_rgba(0,243,255,0.8)] animate-pulse" id="roundTitle">
+      ROUND 1
+    </div>
+    <div class="mt-4 h-1 w-64 bg-gray-800 rounded overflow-hidden">
+       <div class="h-full bg-neon-green animate-[loadingBar_2s_ease-in-out_infinite]"></div>
+    </div>
+  </div>
+
 
 </body>
 </html>
