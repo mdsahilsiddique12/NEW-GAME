@@ -67,18 +67,24 @@
       display: none;
       width: 100%;
       max-width: 420px;
+      max-height: 90vh; /* Prevent it from going off-screen */
       padding: 2.5rem;
       background: var(--glass-panel);
       border: 1px solid rgba(0, 243, 255, 0.3);
       box-shadow: 0 0 20px rgba(0, 243, 255, 0.1), inset 0 0 20px rgba(0,0,0,0.8);
       backdrop-filter: blur(10px);
-      clip-path: polygon(
-        0 10px, 10px 0, 
-        100% 0, 100% calc(100% - 10px), 
-        calc(100% - 10px) 100%, 0 100%
-      );
+      
+      /* --- FIX STARTS HERE --- */
+      /* Removed clip-path because it was cutting off the button at the bottom */
+      /* clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); */
+      
+      border-radius: 12px; /* Nice rounded corners instead of clip-path */
+      overflow-y: auto;    /* Adds scrollbar if content is too tall */
+      /* --- FIX ENDS HERE --- */
+
       animation: cyberFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
+
 
     .active-screen { display: flex; flex-direction: column; gap: 1.5rem; }
 
