@@ -267,11 +267,14 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // --- Round Result (Cyberpunk) ---
+  // --- Round Result (Fixed) ---
   function showRoundResult(data, selfId, roomRef, isHost) {
     const res = data.guess;
     const isCorrect = res.correct;
     
-    // --- HOST LOGIC: Calculate & Save Scores (Client Side) ---
+    console.log("Round Result - Am I Host?", isHost); // Debug Log
+
+    // --- HOST LOGIC: Calculate & Save Scores ---
     if (isHost && !data.scoreUpdated) {
        const roundPoints = calculateRoundPoints(data.playerRoles, isCorrect);
        const historyEntry = { timestamp: new Date().toISOString(), roles: data.playerRoles, points: roundPoints, result: isCorrect?'Caught':'Escaped' };
@@ -289,7 +292,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const roleMap = {}; 
     data.playerRoles.forEach(p => roleMap[p.role] = p.name);
     
-    // Result Message Text
+    // --- UI Construction ---
     const resultText = isCorrect ? 'TARGET NEUTRALIZED' : 'MISSION FAILED';
     const resultColor = isCorrect ? 'text-neon-green' : 'text-red-500';
     const resultEmoji = isCorrect ? '🎯' : '❌';
@@ -319,17 +322,17 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
       </div>`;
 
-    // Button HTML logic
+    // --- Button Logic ---
     const hostControlsHtml = isHost 
-      ? `<button id="nextRoundBtn" class="cyber-btn w-full mt-6 py-3 shadow-[0_0_15px_rgba(0,243,255,0.4)]">REBOOT SYSTEM (NEXT ROUND)</button>` 
+      ? `<button id="nextRoundBtn" class="cyber-btn w-full mt-6 py-3 shadow-[0_0_15px_rgba(0,243,255,0.4)]">REBOOT SYSTEM</button>` 
       : `<div class="mt-6 text-xs text-gray-500 animate-pulse text-center">WAITING FOR HOST REBOOT...</div>`;
 
     gameContent.innerHTML = `
       <div class="flex flex-col items-center w-full animate-fade-in px-2">
         <div class="text-6xl mb-2 filter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">${resultEmoji}</div>
         
-        <!-- Fixed Text Sizing: text-xl md:text-2xl ensures it fits on small screens -->
-        <h2 class="font-cyber text-xl md:text-2xl ${resultColor} uppercase tracking-widest text-center drop-shadow-lg break-words w-full">
+        <!-- Fixed Text Sizing -->
+        <h2 class="font-cyber text-xl md:text-2xl ${resultColor} uppercase tracking-widest text-center drop-shadow-lg break-words w-full leading-tight">
           ${resultText}
         </h2>
         
@@ -337,16 +340,19 @@ document.addEventListener("DOMContentLoaded", function () {
         ${hostControlsHtml}
       </div>`;
 
-    // Attach Event Listener with Timeout to ensure DOM is ready
+    // --- Event Listener Attachment ---
     if (isHost) {
+        // Use a slight delay to ensure innerHTML is processed
         setTimeout(() => {
             const nb = document.getElementById('nextRoundBtn');
             if (nb) {
+                console.log("Button found, attaching listener");
                 nb.onclick = async () => {
+                    console.log("Rebooting...");
                     nb.textContent = "INITIALIZING...";
-                    nb.disabled = true; // Prevent double clicks
+                    nb.disabled = true; 
                     
-                    const roles = assignRoles(data.playerRoles); // Shuffle new roles
+                    const roles = assignRoles(data.playerRoles); 
                     
                     await roomRef.update({ 
                         phase: 'reveal', 
@@ -357,9 +363,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     });
                 };
             } else {
-                console.error("Next Round Button could not be found in DOM.");
+                console.error("CRITICAL: Next Round Button NOT found in DOM");
             }
-        }, 50);
+        }, 100);
     }
   }
 
