@@ -3,403 +3,211 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Raja Mantri Chor Sipahi</title>
+  <title>Game Nexus | Protocol 2077</title>
   
-  <!-- Load Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
   
-  <!-- Internal CSS for Custom Styling -->
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
-
     :root {
-      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --glass-bg: rgba(255, 255, 255, 0.95);
-      --glass-border: rgba(255, 255, 255, 0.4);
-      --shadow-soft: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+      --neon-blue: #00f3ff;
+      --neon-pink: #d946ef; 
+      --neon-red: #ef4444;  
+      --bg-dark: #030712;   
+      --card-surface: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.1);
     }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Poppins', sans-serif;
-      background: var(--primary-gradient);
-      min-height: 100vh;
-      margin: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      font-family: 'Rajdhani', sans-serif;
+      background-color: var(--bg-dark);
+      color: white;
       overflow-x: hidden;
-    }
-
-    /* Decorative Background Shapes */
-    .bg-shape {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(80px);
-      z-index: 0;
-      animation: float 6s ease-in-out infinite;
-    }
-    .shape-1 {
-      top: -10%; left: -10%; width: 300px; height: 300px;
-      background: rgba(255, 255, 255, 0.3);
-    }
-    .shape-2 {
-      bottom: -10%; right: -10%; width: 400px; height: 400px;
-      background: rgba(255, 255, 255, 0.2);
-      animation-delay: 2s;
-    }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(20px); }
-    }
-
-    /* Main Container */
-    .app-container {
-      position: relative;
-      z-index: 10;
-      width: 100%;
-      max-width: 420px;
-      padding: 20px;
-    }
-
-    /* Glassmorphism Card Style */
-    .menu-screen {
-      display: none; /* Controlled via JS */
-      background: var(--glass-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-radius: 24px;
-      border: 1px solid var(--glass-border);
-      box-shadow: var(--shadow-soft);
-      padding: 2.5rem 2rem;
-      text-align: center;
-      animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .active-screen {
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(20px) scale(0.95); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    /* Logo Styling */
-    .logo-container {
-      margin-bottom: 1.5rem;
+      align-items: center;
+      justify-content: center;
       position: relative;
     }
-    .main-logo {
-      filter: drop-shadow(0 10px 15px rgba(118, 75, 162, 0.3));
-      animation: pulseLogo 3s infinite;
+
+    /* --- Background FX --- */
+    .background-fx {
+      position: fixed; inset: 0; z-index: -1;
+      background: 
+        radial-gradient(circle at 50% 0%, rgba(0, 243, 255, 0.15), transparent 50%),
+        radial-gradient(circle at 0% 100%, rgba(217, 70, 239, 0.1), transparent 40%),
+        var(--bg-dark);
+    }
+    .background-fx::after {
+      content: ""; position: absolute; inset: 0;
+      background-image: radial-gradient(white 1px, transparent 1px);
+      background-size: 50px 50px; opacity: 0.1;
+      mask-image: radial-gradient(circle at center, black, transparent 80%);
     }
 
-    @keyframes pulseLogo {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
+    /* Header */
+    header { text-align: center; margin-bottom: 3rem; z-index: 10; padding: 0 1rem; }
 
-    /* Typography */
     h1 {
-      background: linear-gradient(to right, #667eea, #764ba2);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      font-size: 1.8rem;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      margin-top: 1rem;
-    }
-
-    h2 {
-      color: #2d3748;
-      font-size: 1.5rem;
-      font-weight: 700;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 3.5rem; font-weight: 800; letter-spacing: 0.2em;
+      background: linear-gradient(to bottom, #fff, #94a3b8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 30px rgba(0, 243, 255, 0.2));
       margin-bottom: 0.5rem;
     }
 
-    /* Buttons */
-    .btn {
-      position: relative;
-      width: 100%;
-      padding: 1rem;
-      border: none;
-      border-radius: 16px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+    .subtitle {
+      font-family: 'Rajdhani', sans-serif; color: #94a3b8; letter-spacing: 0.3em;
+      font-size: 1rem; font-weight: 500; text-transform: uppercase;
+      display: flex; align-items: center; justify-content: center; gap: 1rem;
+    }
+    .subtitle::before, .subtitle::after {
+      content: ""; height: 1px; width: 40px;
+      background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
     }
 
-    .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-    .btn:active { transform: translateY(1px); }
-
-    .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      box-shadow: 0 4px 15px rgba(118, 75, 162, 0.4);
+    /* Cards Container */
+    .container {
+      display: flex; flex-wrap: wrap; gap: 2rem; justify-content: center;
+      padding: 2rem; z-index: 10; max-width: 1000px;
     }
 
-    .btn-success {
-      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-      color: white;
-      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
-    }
-
-    .btn-danger {
-      background: #fed7d7;
-      color: #c53030;
-    }
-    .btn-danger:hover { background: #feb2b2; }
-
-    .btn-secondary {
-      background: #e2e8f0;
-      color: #4a5568;
-    }
-    .btn-secondary:hover { background: #cbd5e0; }
-
-    /* Inputs */
-    .input-group { position: relative; width: 100%; }
-    .input-field {
-      width: 100%;
-      padding: 1rem 1rem 1rem 3rem; /* Space for icon */
-      border: 2px solid #e2e8f0;
-      border-radius: 16px;
-      font-size: 1rem;
-      background: #f7fafc;
-      transition: all 0.3s;
-    }
-    .input-field:focus {
-      outline: none;
-      border-color: #667eea;
-      background: white;
-      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-    }
-    .input-icon {
-      position: absolute;
-      left: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #a0aec0;
-      font-size: 1.2rem;
-    }
-
-    /* Room Code Box */
-    .room-code-box {
-      background: #ebf4ff;
-      border: 2px dashed #667eea;
-      border-radius: 12px;
-      padding: 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-    .code-text {
-      font-family: 'Courier New', monospace;
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #4c51bf;
-      letter-spacing: 2px;
-    }
-
-    /* Player List */
-    .player-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      text-align: left;
-    }
-    .player-item {
-      background: white;
-      padding: 0.8rem 1rem;
-      border-radius: 12px;
-      margin-bottom: 0.5rem;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 500;
-      color: #4a5568;
-    }
-    .player-avatar {
-      width: 32px; height: 32px;
-      background: #edf2f7;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-    }
-
-    /* Modal */
-    #messageBox {
-      position: fixed; inset: 0; z-index: 50;
-      background: rgba(0,0,0,0.4);
-      backdrop-filter: blur(4px);
-      display: none;
-      align-items: center; justify-content: center;
-    }
-    #messageBoxContent {
-      background: white;
-      padding: 2rem;
+    /* Card Styling */
+    .card {
+      position: relative; width: 320px; height: 440px;
+      background: var(--card-surface);
+      border: 1px solid var(--card-border);
       border-radius: 24px;
-      text-align: center;
-      max-width: 320px;
-      width: 90%;
-      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-    @keyframes popIn {
-      from { transform: scale(0.8); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
+      display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+      padding: 2.5rem 2rem; text-decoration: none;
+      transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+      backdrop-filter: blur(12px); overflow: hidden;
     }
 
+    /* Inner Border Glow */
+    .card::before {
+      content: ""; position: absolute; inset: 0; border-radius: 24px; padding: 1px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.1), transparent);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+    }
+
+    /* Hover States */
+    .card.rmcs:hover { border-color: var(--neon-blue); box-shadow: 0 10px 40px -10px rgba(0, 243, 255, 0.3); }
+    .card.dk:hover   { border-color: var(--neon-red);  box-shadow: 0 10px 40px -10px rgba(239, 68, 68, 0.3); }
+    .card:hover { transform: translateY(-8px); background: rgba(255,255,255,0.05); }
+
+    /* Icon Box */
+    .icon-box {
+      width: 80px; height: 80px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.5rem; margin-bottom: 1rem;
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+      transition: 0.5s;
+    }
+    .rmcs .icon-box { color: var(--neon-blue); box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); }
+    .dk .icon-box   { color: var(--neon-red);  box-shadow: 0 0 20px rgba(239, 68, 68, 0.1); }
+    .card:hover .icon-box { transform: scale(1.1); background: rgba(255,255,255,0.1); }
+
+    /* Text & Glitch Effect */
+    .card-title {
+      font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 700;
+      text-align: center; text-transform: uppercase; line-height: 1.3;
+      margin-bottom: 0.5rem; color: white; letter-spacing: 1px;
+      position: relative; display: inline-block;
+    }
+
+    /* Glitch Keyframes */
+    @keyframes glitch {
+      0% { transform: translate(0); }
+      20% { transform: translate(-2px, 2px); }
+      40% { transform: translate(-2px, -2px); }
+      60% { transform: translate(2px, 2px); }
+      80% { transform: translate(2px, -2px); }
+      100% { transform: translate(0); }
+    }
+    .card:hover .card-title {
+      animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+      color: white;
+      text-shadow: 2px 2px var(--neon-pink), -2px -2px var(--neon-blue);
+    }
+
+    .card-desc {
+      text-align: center; color: #94a3b8; font-size: 0.95rem;
+      line-height: 1.5; font-weight: 400; margin-bottom: auto;
+    }
+
+    /* Button */
+    .play-btn {
+      margin-top: 2rem; width: 100%; padding: 0.8rem;
+      text-align: center; font-family: 'Orbitron', sans-serif;
+      font-weight: 600; font-size: 0.9rem; text-transform: uppercase;
+      letter-spacing: 2px; border-radius: 12px; transition: 0.3s;
+      position: relative; overflow: hidden; z-index: 1;
+    }
+    .rmcs .play-btn { border: 1px solid var(--neon-blue); color: var(--neon-blue); }
+    .rmcs .play-btn:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 20px var(--neon-blue); }
+    .dk .play-btn { border: 1px solid var(--neon-red); color: var(--neon-red); }
+    .dk .play-btn:hover { background: var(--neon-red); color: #fff; box-shadow: 0 0 20px var(--neon-red); }
+
+    /* Footer */
+    footer { margin-top: auto; padding: 2rem; text-align: center; font-family: 'Rajdhani', sans-serif; z-index: 10; }
+    .credit-box { display: inline-flex; flex-direction: column; align-items: center; opacity: 0.7; transition: 0.3s; }
+    .credit-box:hover { opacity: 1; }
+    .credit-name { font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; color: #fff; }
+    .credit-role { font-size: 0.7rem; color: var(--neon-blue); margin-top: 2px; }
+
+    @media (max-width: 768px) {
+      h1 { font-size: 2.5rem; }
+      .card { width: 100%; max-width: 340px; min-height: 400px; }
+    }
   </style>
-
-  <!-- Firebase Setup -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
-  <script src="js/firebase-config.js"></script>
-  <script src="js/rmcs.js?v=new"></script> <!-- Cache busting added -->
 </head>
 <body>
 
-  <!-- Background Shapes -->
-  <div class="bg-shape shape-1"></div>
-  <div class="bg-shape shape-2"></div>
+  <div class="background-fx"></div>
 
-  <div class="app-container">
+  <header>
+    <h1>GAME NEXUS</h1>
+    <div class="subtitle">Select Protocol</div>
+  </header>
+
+  <div class="container">
     
-    <!-- Screens Wrapper -->
-    <div id="screens">
-
-      <!-- 1. Main Menu -->
-      <div id="mainMenu" class="menu-screen active-screen">
-        <div class="logo-container">
-          <svg class="main-logo w-24 h-24 mx-auto text-indigo-600" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z"/>
-          </svg>
-          <h1>Raja Mantri<br>Chor Sipahi</h1>
-        </div>
-        
-        <button id="createRoomBtn" class="btn btn-primary create-btn">
-          <span>👑</span> Create New Room
-        </button>
-        <button id="joinRoomBtn" class="btn btn-success join-btn">
-          <span>🚀</span> Join Existing Room
-        </button>
+    <!-- Card 1: RMCS -->
+    <a href="rmcs.html" class="card rmcs">
+      <div class="icon-box">👑</div>
+      <div class="card-title">Raja Mantri<br>Chor Sipahi</div>
+      <div class="card-desc">
+        Strategic deception. Assume roles, hide your identity, and outsmart the law.
       </div>
+      <div class="play-btn">Initialize</div>
+    </a>
 
-      <!-- 2. Create Room -->
-      <div id="createScreen" class="menu-screen">
-        <div class="text-left mb-4">
-          <h2>Create Room</h2>
-          <p class="text-gray-500 text-sm">Set up a new game lobby.</p>
-        </div>
-        
-        <div class="input-group">
-          <span class="input-icon">👤</span>
-          <input type="text" id="createPlayerName" class="input-field" placeholder="Your Nickname" />
-        </div>
-        
-        <div class="input-group">
-          <span class="input-icon">🔒</span>
-          <input type="text" id="createRoomCode" maxlength="8" class="input-field uppercase" placeholder="Room Code (Optional)" />
-        </div>
-
-        <div id="createRoomError" class="text-red-500 text-sm font-semibold hidden"></div>
-
-        <div class="flex flex-col gap-3 mt-4">
-          <button id="createRoomFinal" class="btn btn-primary">Create Lobby</button>
-          <button class="btn btn-secondary back-btn" data-target="mainMenu">Cancel</button>
-        </div>
+    <!-- Card 2: Detective Killer -->
+    <a href="detective.html" class="card dk">
+      <div class="icon-box">🕵️</div>
+      <div class="card-title">Detective<br>Killer</div>
+      <div class="card-desc">
+        High-stakes investigation. Identify the killer before they eliminate everyone.
       </div>
+      <div class="play-btn">Investigate</div>
+    </a>
 
-      <!-- 3. Join Room -->
-      <div id="joinScreen" class="menu-screen">
-        <div class="text-left mb-4">
-          <h2>Join Room</h2>
-          <p class="text-gray-500 text-sm">Enter code to join friends.</p>
-        </div>
-
-        <div class="input-group">
-          <span class="input-icon">👤</span>
-          <input type="text" id="joinPlayerName" class="input-field" placeholder="Your Nickname" />
-        </div>
-
-        <div class="input-group">
-          <span class="input-icon">🔑</span>
-          <input type="text" id="joinRoomCode" maxlength="8" class="input-field uppercase" placeholder="Enter Room Code" />
-        </div>
-
-        <div id="joinRoomError" class="text-red-500 text-sm font-semibold hidden"></div>
-
-        <div class="flex flex-col gap-3 mt-4">
-          <button id="joinRoomFinal" class="btn btn-success">Join Game</button>
-          <button class="btn btn-secondary back-btn" data-target="mainMenu">Back</button>
-        </div>
-      </div>
-
-      <!-- 4. Lobby Screen -->
-      <div id="gameScreen" class="menu-screen">
-        <div class="logo-container mb-0">
-          <h2>Game Lobby</h2>
-          <p class="text-gray-500 text-sm">Waiting for players...</p>
-        </div>
-
-        <div class="room-code-box">
-          <div id="currentRoomCode" class="w-full flex justify-between items-center">
-            <!-- JS injects code here -->
-          </div>
-        </div>
-
-        <!-- Scenario Generator (Optional Feature) -->
-        <div id="scenarioSection" class="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
-          <h3 class="text-sm font-bold text-yellow-700 mb-1 flex items-center gap-2">
-            🎭 Scenario
-          </h3>
-          <div id="scenarioOutput" class="text-gray-600 text-xs italic mb-2">
-            Click below to set the scene!
-          </div>
-          <button id="generateScenarioBtn" class="btn btn-sm bg-yellow-400 text-yellow-900 text-xs py-2 rounded-lg w-full hover:bg-yellow-500">
-            Generate Scenario
-          </button>
-        </div>
-
-        <div class="w-full text-left mb-2">
-          <h3 class="text-sm font-bold text-gray-600 uppercase">Players</h3>
-        </div>
-        
-        <ul id="playersList" class="player-list w-full">
-          <!-- JS injects players here -->
-        </ul>
-
-        <div class="flex flex-col gap-3 mt-6">
-          <button id="startGameBtn" class="btn btn-primary">Start Game</button>
-          <button id="exitLobbyBtn" class="btn btn-danger">Exit Lobby</button>
-        </div>
-      </div>
-
-    </div>
   </div>
 
-  <!-- Message Overlay -->
-  <div id="messageBox">
-    <div id="messageBoxContent">
-      <h3 id="messageBoxTitle" class="text-xl font-bold mb-2 text-gray-800">Alert</h3>
-      <p id="messageBoxBody" class="text-gray-600 mb-6 text-sm"></p>
-      <button id="messageBoxClose" class="btn btn-primary py-2">Okay</button>
+  <footer>
+    <div class="credit-box">
+      <span class="credit-name">Architected by Sahil</span>
+      <span class="credit-role">Full Stack Developer</span>
     </div>
-  </div>
+  </footer>
 
 </body>
 </html>
