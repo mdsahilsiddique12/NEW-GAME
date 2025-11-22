@@ -266,6 +266,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // --- Round Result (Cyberpunk) ---
   function showRoundResult(data, selfId, roomRef, isHost) {
     const res = data.guess;
     const isCorrect = res.correct;
@@ -275,11 +276,9 @@ document.addEventListener("DOMContentLoaded", function () {
        const roundPoints = calculateRoundPoints(data.playerRoles, isCorrect);
        const historyEntry = { timestamp: new Date().toISOString(), roles: data.playerRoles, points: roundPoints, result: isCorrect?'Caught':'Escaped' };
        
-       // Cumulative Score Calc
        const newScores = { ...data.scores };
        Object.keys(roundPoints).forEach(uid => { newScores[uid] = (newScores[uid] || 0) + roundPoints[uid]; });
 
-       // Atomic Update not strictly needed for single host, but standard update works
        roomRef.update({
            scores: newScores,
            history: firebase.firestore.FieldValue.arrayUnion(historyEntry),
@@ -287,35 +286,83 @@ document.addEventListener("DOMContentLoaded", function () {
        });
     }
 
-    const roleMap = {}; data.playerRoles.forEach(p => roleMap[p.role] = p.name);
+    const roleMap = {}; 
+    data.playerRoles.forEach(p => roleMap[p.role] = p.name);
     
+    // Result Message Text
+    const resultText = isCorrect ? 'TARGET NEUTRALIZED' : 'MISSION FAILED';
+    const resultColor = isCorrect ? 'text-neon-green' : 'text-red-500';
+    const resultEmoji = isCorrect ? '🎯' : '❌';
+
     const resultsHtml = `
       <div class="w-full bg-black/80 border border-gray-600 p-4 rounded mt-4 text-left shadow-lg">
-        <div class="flex justify-between items-center border-b border-gray-500 pb-1 mb-2"><span class="text-xs text-gray-300 uppercase">Mission Report</span></div>
+        <div class="flex justify-between items-center border-b border-gray-500 pb-1 mb-2">
+          <span class="text-xs text-gray-300 uppercase tracking-wider">Mission Report</span>
+        </div>
         <div class="space-y-3 text-base font-bold font-mono">
-          <div class="flex justify-between items-center bg-white/5 p-2 rounded"><span class="text-yellow-300">👑 RAJA</span><span class="text-white">${roleMap['Raja']}</span></div>
-          <div class="flex justify-between items-center bg-white/5 p-2 rounded"><span class="text-fuchsia-300">🧠 MANTRI</span><span class="text-white">${roleMap['Mantri']}</span></div>
-          <div class="flex justify-between items-center bg-white/5 p-2 rounded"><span class="text-cyan-300">🛡️ SIPAHI</span><span class="text-white">${roleMap['Sipahi']}</span></div>
-          <div class="flex justify-between items-center bg-white/5 p-2 rounded"><span class="text-rose-400">🔪 CHOR</span><span class="text-white">${roleMap['Chor']}</span></div>
+          <div class="flex justify-between items-center bg-white/5 p-2 rounded">
+            <span class="text-yellow-300 drop-shadow-sm">👑 RAJA</span> 
+            <span class="text-white tracking-wide">${roleMap['Raja'] || '-'}</span>
+          </div>
+          <div class="flex justify-between items-center bg-white/5 p-2 rounded">
+            <span class="text-fuchsia-300 drop-shadow-sm">🧠 MANTRI</span> 
+            <span class="text-white tracking-wide">${roleMap['Mantri'] || '-'}</span>
+          </div>
+          <div class="flex justify-between items-center bg-white/5 p-2 rounded">
+            <span class="text-cyan-300 drop-shadow-sm">🛡️ SIPAHI</span> 
+            <span class="text-white tracking-wide">${roleMap['Sipahi'] || '-'}</span>
+          </div>
+          <div class="flex justify-between items-center bg-white/5 p-2 rounded">
+            <span class="text-rose-400 drop-shadow-sm">🔪 CHOR</span> 
+            <span class="text-white tracking-wide">${roleMap['Chor'] || '-'}</span>
+          </div>
         </div>
       </div>`;
 
+    // Button HTML logic
+    const hostControlsHtml = isHost 
+      ? `<button id="nextRoundBtn" class="cyber-btn w-full mt-6 py-3 shadow-[0_0_15px_rgba(0,243,255,0.4)]">REBOOT SYSTEM (NEXT ROUND)</button>` 
+      : `<div class="mt-6 text-xs text-gray-500 animate-pulse text-center">WAITING FOR HOST REBOOT...</div>`;
+
     gameContent.innerHTML = `
-      <div class="flex flex-col items-center w-full animate-fade-in">
-        <div class="text-6xl mb-2">${isCorrect ? '🎯' : '❌'}</div>
-        <h2 class="font-cyber text-2xl ${isCorrect ? 'text-neon-green' : 'text-red-500'} uppercase tracking-widest text-center">${isCorrect ? 'TARGET NEUTRALIZED' : 'MISSION FAILED'}</h2>
+      <div class="flex flex-col items-center w-full animate-fade-in px-2">
+        <div class="text-6xl mb-2 filter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">${resultEmoji}</div>
+        
+        <!-- Fixed Text Sizing: text-xl md:text-2xl ensures it fits on small screens -->
+        <h2 class="font-cyber text-xl md:text-2xl ${resultColor} uppercase tracking-widest text-center drop-shadow-lg break-words w-full">
+          ${resultText}
+        </h2>
+        
         ${resultsHtml}
-        ${isHost ? '<button id="nextRoundBtn" class="cyber-btn w-full mt-6">REBOOT SYSTEM</button>' : '<div class="mt-6 text-xs text-gray-500 animate-pulse">WAITING FOR HOST...</div>'}
+        ${hostControlsHtml}
       </div>`;
 
+    // Attach Event Listener with Timeout to ensure DOM is ready
     if (isHost) {
-        const nb = document.getElementById('nextRoundBtn');
-        if(nb) nb.onclick = () => {
-            const roles = assignRoles(data.playerRoles);
-            roomRef.update({ phase: 'reveal', playerRoles: roles, revealed: [], guess: null, scoreUpdated: false });
-        };
+        setTimeout(() => {
+            const nb = document.getElementById('nextRoundBtn');
+            if (nb) {
+                nb.onclick = async () => {
+                    nb.textContent = "INITIALIZING...";
+                    nb.disabled = true; // Prevent double clicks
+                    
+                    const roles = assignRoles(data.playerRoles); // Shuffle new roles
+                    
+                    await roomRef.update({ 
+                        phase: 'reveal', 
+                        playerRoles: roles, 
+                        revealed: [], 
+                        guess: null, 
+                        scoreUpdated: false 
+                    });
+                };
+            } else {
+                console.error("Next Round Button could not be found in DOM.");
+            }
+        }, 50);
     }
   }
+
 
   // --- Setup Handlers ---
   async function handleCancelRoom() {
