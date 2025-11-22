@@ -224,20 +224,32 @@
     }
 
     /* Dynamic Game Content Overlay */
+    /* Dynamic Game Content Overlay */
     #gameContent {
       position: absolute;
-      top: -20px; left: -20px; right: -20px; bottom: -20px;
-      display: none; /* JS toggles this */
+      /* Expand to cover the entire container, not just the table */
+      top: -50px; left: -20px; right: -20px; bottom: -100px; 
+      min-height: 450px; /* Force minimum height */
+      display: none; 
       flex-direction: column;
-      justify-content: center;
+      justify-content: center; /* Center content */
       align-items: center;
-      z-index: 50;
-      background: rgba(5, 5, 16, 0.9);
+      z-index: 100; /* Higher than avatars */
+      
+      background: rgba(5, 5, 16, 0.98); /* Darker background for readability */
       border: 1px solid var(--neon-pink);
-      box-shadow: 0 0 30px rgba(188, 19, 254, 0.2);
-      backdrop-filter: blur(8px);
-      clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
+      box-shadow: 0 0 50px rgba(188, 19, 254, 0.3);
+      backdrop-filter: blur(15px);
+      
+      /* CRITICAL FIX: Remove clip-path so button isn't cut off */
+      /* clip-path: polygon(...)  <-- REMOVE THIS */
+      border-radius: 16px; 
+      
+      /* Add scrolling if content gets too tall */
+      overflow-y: auto; 
+      padding: 1rem;
     }
+
 
     /* Animations */
     @keyframes cyberFadeIn {
