@@ -156,6 +156,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // --- Main Room Listener ---
+  // --- Main Room Listener ---
+  let currentRound = 0; // Track round number locally
+  let lastPhase = '';
+
   function listenToRoom(roomCode) {
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
     const roomRef = db.collection('rmcs_rooms').doc(roomCode);
@@ -175,6 +179,29 @@ document.addEventListener("DOMContentLoaded", function () {
       const isHost = selfId === data.host;
       if (cancelRoomBtn) { cancelRoomBtn.style.display = isHost ? 'block' : 'none'; cancelRoomBtn.onclick = isHost ? handleCancelRoom : null; }
 
+      // Calculate Round Number based on history length
+      const roundNum = (data.history ? data.history.length : 0) + 1;
+
+      // --- Round Transition Logic ---
+      const transitionEl = document.getElementById('roundTransition');
+      const roundTitle = document.getElementById('roundTitle');
+      
+      // Trigger transition ONLY when entering 'reveal' phase from a different phase (like 'lobby' or 'roundResult')
+      if (data.phase === 'reveal' && lastPhase !== 'reveal') {
+          if(transitionEl && roundTitle) {
+              roundTitle.textContent = `ROUND ${roundNum}`;
+              transitionEl.classList.remove('hidden');
+              transitionEl.style.display = 'flex';
+              
+              // Hide after 3 seconds
+              setTimeout(() => {
+                  transitionEl.classList.add('hidden');
+                  transitionEl.style.display = 'none';
+              }, 3000);
+          }
+      }
+      lastPhase = data.phase;
+
       if (data.phase === "lobby") {
         if (gameContent) { gameContent.style.display = 'none'; }
         const tableEl = gameTable ? gameTable.querySelector('.table') : null;
@@ -187,7 +214,6 @@ document.addEventListener("DOMContentLoaded", function () {
           startGameBtn.textContent = (data.players.length === 4) ? 'INITIATE SEQUENCE' : `WAITING (${data.players.length}/4)`;
           if(data.players.length !== 4) startGameBtn.classList.add('opacity-50'); else startGameBtn.classList.remove('opacity-50');
 
-          // --- HOST START GAME LOGIC (Client Side) ---
           startGameBtn.onclick = async () => {
             if (!(isHost && data.players.length === 4)) return;
             const roles = assignRoles(data.players);
@@ -205,6 +231,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   }
+
 
   function showRoleRevealScreen(data, selfId, roomRef) {
     const p = data.playerRoles.find(p => p.id === selfId);
