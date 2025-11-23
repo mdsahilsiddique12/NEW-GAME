@@ -1,273 +1,319 @@
 document.addEventListener("DOMContentLoaded", function() {
   const firestore = firebase.firestore();
-  let roomId = '';
-  let playerName = '';
   let unsubscribe = null;
-  let myRole = '';
-  let myPlayerId = '';
-  
-  // DOM Elements
-  const createBtn = document.getElementById('createRoom');
-  const joinBtn = document.getElementById('joinRoom');
-  const nameInputCreate = document.getElementById('nameInputCreate');
-  const nameInputJoin = document.getElementById('nameInputJoin');
-  const joinCodeInput = document.getElementById('joinCode');
+  let roomId = '';
+  let myUid = '';
+
+  // --- DOM REFS ---
+  const scorePanel = document.getElementById('scorePanel');
+  const scoreListEl = document.getElementById('scoreList');
   const gameContent = document.getElementById('gameContent');
+  const mainMenu = document.getElementById('mainMenu');
+  const historyModal = document.getElementById('historyModal');
+  const historyContent = document.getElementById('historyContent');
 
-  // --- HELPERS ---
-  function generateRoomCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-    return result;
-  }
+  // --- BUTTON HANDLERS ---
+  
+  // 1. Create Room
+  document.getElementById('createBtn').onclick = async () => {
+    const name = document.getElementById('playerNameInput').value.trim();
+    if (!name) return alert("NAME REQUIRED");
+    
+    await auth();
+    const code = generateCode();
+    
+    await firestore.collection('detective_rooms').doc(code).set({
+      host: myUid,
+      state: 'waiting', // waiting, playing, result
+      round: 1,
+      players: [{ id: myUid, name: name, role: null, alive: true, score: 0 }],
+      history: [], // Stores past round data
+      created: Date.now()
+    });
+    
+    enterRoom(code);
+  };
 
-  function getPlayerName(isCreating) {
-    const mainInput = document.getElementById('playerName').value.trim();
-    if (mainInput) return mainInput;
-    return isCreating ? (nameInputCreate ? nameInputCreate.value.trim() : '') 
-                      : (nameInputJoin ? nameInputJoin.value.trim() : '');
-  }
+  // 2. Join UI Toggle
+  document.getElementById('joinBtn').onclick = () => {
+    document.getElementById('joinInputs').style.display = 'block';
+    document.getElementById('createBtn').style.display = 'none';
+    document.getElementById('joinBtn').style.display = 'none';
+  };
 
-  // --- 1. CREATE ROOM ---
-  if (createBtn) {
-    createBtn.onclick = async () => {
-      playerName = getPlayerName(true);
-      if (!playerName) return alert('Agent Name Required!');
-      
-      if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
-      const uid = firebase.auth().currentUser.uid;
+  // 3. Confirm Join
+  document.getElementById('confirmJoinBtn').onclick = async () => {
+    const name = document.getElementById('playerNameInput').value.trim();
+    const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+    if (!name || !code) return alert("MISSING INTEL");
 
-      let newCode = generateRoomCode(); // In real app, check collision
-      
-      await firestore.collection('detective_rooms').doc(newCode).set({
-        host: playerName,
-        hostId: uid,
-        players: [{ name: playerName, id: uid, alive: true, role: null }],
-        state: 'waiting',
-        winner: null,
-        logs: [] // To show "Player X died" events
+    await auth();
+    const ref = firestore.collection('detective_rooms').doc(code);
+    
+    try {
+      await firestore.runTransaction(async (t) => {
+        const doc = await t.get(ref);
+        if (!doc.exists) throw "INVALID CODE";
+        const data = doc.data();
+        if (data.players.length >= 10) throw "ROOM FULL";
+        if (data.state !== 'waiting' && !data.players.find(p => p.id === myUid)) throw "MISSION IN PROGRESS";
+        
+        if (!data.players.find(p => p.id === myUid)) {
+          t.update(ref, {
+            players: firebase.firestore.FieldValue.arrayUnion({ id: myUid, name: name, role: null, alive: true, score: 0 })
+          });
+        }
       });
-      
-      roomId = newCode;
-      listenToRoom(roomId);
-    };
+      enterRoom(code);
+    } catch (e) { alert(e); }
+  };
+
+  // 4. Disconnect
+  document.getElementById('leaveBtn').onclick = () => {
+    if (confirm("ABORT MISSION?")) location.reload();
+  };
+
+  // 5. History
+  document.getElementById('viewHistoryBtn').onclick = () => {
+    historyModal.style.display = 'flex';
+  };
+
+  // --- CORE FUNCTIONS ---
+
+  async function auth() {
+    if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
+    myUid = firebase.auth().currentUser.uid;
   }
 
-  // --- 2. JOIN ROOM ---
-  if (joinBtn) {
-    joinBtn.onclick = async () => {
-      playerName = getPlayerName(false);
-      const code = joinCodeInput.value.trim().toUpperCase();
-      if (!playerName || !code) return alert('Name & Code Required!');
-
-      if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
-      const uid = firebase.auth().currentUser.uid;
-
-      const roomRef = firestore.collection('detective_rooms').doc(code);
-      
-      try {
-        await firestore.runTransaction(async (t) => {
-          const doc = await t.get(roomRef);
-          if (!doc.exists) throw 'Invalid Room Code';
-          const data = doc.data();
-          
-          if (!data.players.some(p => p.id === uid)) {
-            if (data.players.length >= 10) throw 'Room Full!';
-            if (data.state !== 'waiting') throw 'Game in progress!';
-            
-            t.update(roomRef, {
-              players: firebase.firestore.FieldValue.arrayUnion({
-                name: playerName, id: uid, alive: true, role: null
-              })
-            });
-          }
-        });
-        roomId = code;
-        listenToRoom(roomId);
-      } catch (e) { alert(e); }
-    };
+  function generateCode() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
-  // --- 3. GAME LISTENER ---
-  function listenToRoom(code) {
-    if (unsubscribe) unsubscribe();
-    if (document.getElementById('view-menu')) {
-        document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
-        gameContent.style.display = 'block';
-    }
-
+  function enterRoom(code) {
+    roomId = code;
+    mainMenu.style.display = 'none';
+    scorePanel.style.display = 'flex';
+    gameContent.style.display = 'block';
+    
+    if(unsubscribe) unsubscribe();
+    
     unsubscribe = firestore.collection('detective_rooms').doc(code).onSnapshot(doc => {
-      if (!doc.exists) return location.reload(); // Reload if room deleted
+      if (!doc.exists) { alert("HOST TERMINATED SESSION"); location.reload(); return; }
       const data = doc.data();
-      const uid = firebase.auth().currentUser.uid;
-      const me = data.players.find(p => p.id === uid);
-      
-      myRole = me ? me.role : '';
-      myPlayerId = uid;
-
-      if (data.state === 'waiting') {
-        renderLobby(code, data.players, data.hostId === uid);
-      } else if (data.state === 'playing') {
-        renderGameScreen(data, me); // NEW: Handles gameplay UI
-      } else if (data.state === 'finished') {
-        renderGameOver(data.winner);
-      }
+      renderGame(data);
+      renderScores(data.players);
+      renderHistory(data.history);
     });
   }
 
-  // --- 4. RENDER LOBBY ---
-  function renderLobby(code, players, isHost) {
-    let html = `
-      <div style="text-align:center;">
-        <h3 style="color:#666;">MISSION CODE</h3>
-        <div style="display:flex; justify-content:center; gap:10px; align-items:center; margin-bottom:20px;">
-            <h1 class="room-code" style="margin:0;">${code}</h1>
-            <button class="btn" style="width:auto; padding:5px 15px;" onclick="navigator.clipboard.writeText('${code}')">COPY</button>
-        </div>
-        <div id="pGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          ${players.map(p => `<div class="player-card" style="color:#fff; border:1px solid #00ff41;">${p.name}</div>`).join('')}
-        </div>
-        ${isHost ? `<button id="startBtn" class="btn btn-action-red" style="margin-top:20px;">START MISSION</button>` : `<p class="blink" style="color:#00ff41; margin-top:20px;">WAITING FOR HOST...</p>`}
-      </div>`;
-    
-    gameContent.innerHTML = html;
-    
-    if (isHost) {
-        const b = document.getElementById('startBtn');
-        if(b) b.onclick = () => startGame(players);
-    }
-  }
+  // --- RENDERERS ---
 
-  // --- 5. RENDER GAME SCREEN (ACTION PHASE) ---
-  function renderGameScreen(data, me) {
-    if (!me.alive) {
-        gameContent.innerHTML = `<h1 style="color:red; text-align:center; margin-top:50px;">YOU ARE DEAD</h1><p style="text-align:center;">Wait for the mission to end.</p>`;
-        return;
-    }
-
-    // Role Banner
-    let roleColor = me.role === 'Killer' ? 'var(--neon-red)' : me.role === 'Detective' ? 'var(--neon-cyan)' : '#fff';
-    
-    let html = `
-      <div style="border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:20px; text-align:center;">
-        <div style="font-size:0.8rem; color:#666;">CURRENT IDENTITY</div>
-        <h2 style="color:${roleColor}; font-size:2rem; margin:5px 0;">${me.role}</h2>
+  function renderScores(players) {
+    // Sort by score descending
+    const sorted = [...players].sort((a, b) => b.score - a.score);
+    scoreListEl.innerHTML = sorted.map(p => `
+      <div class="score-item">
+        <span>${p.name}</span>
+        <span>${p.score}</span>
       </div>
-      
-      <h3 style="font-size:1rem; color:#888; margin-bottom:10px;">AGENTS STATUS:</h3>
-      <div style="display:flex; flex-direction:column; gap:10px;">
-    `;
+    `).join('');
+  }
 
-    // Render Players List with Actions
-    data.players.forEach(p => {
-        if (!p.alive) {
-             // Dead Player Entry
-            html += `<div style="background:#330000; border:1px solid #550000; padding:10px; color:#888; text-decoration:line-through;">${p.name} (DEAD)</div>`;
-        } else {
-            // Living Player Entry
-            let actionButton = '';
-            
-            // Don't show buttons for self
-            if (p.id !== me.id) {
-                if (me.role === 'Killer') {
-                    actionButton = `<button onclick="killPlayer('${p.id}', '${p.name}')" style="float:right; background:var(--neon-red); border:none; color:#fff; padding:5px 10px; cursor:pointer; font-weight:bold;">KILL</button>`;
-                } else if (me.role === 'Detective') {
-                    actionButton = `<button onclick="arrestPlayer('${p.id}', '${p.name}')" style="float:right; background:var(--neon-cyan); border:none; color:#000; padding:5px 10px; cursor:pointer; font-weight:bold;">ARREST</button>`;
-                }
-            }
-            
-            html += `<div style="background:rgba(255,255,255,0.05); border:1px solid #444; padding:10px; display:flex; justify-content:space-between; align-items:center;">
-                        <span>${p.name} ${p.id === me.id ? '(YOU)' : ''}</span>
-                        ${actionButton}
-                     </div>`;
-        }
+  function renderHistory(history) {
+    if (!history || history.length === 0) {
+      historyContent.innerHTML = "No completed rounds yet.";
+      return;
+    }
+    
+    let html = `<table><thead><tr><th>RND</th><th>KILLER</th><th>DETECTIVE</th><th>RESULT</th></tr></thead><tbody>`;
+    history.forEach((h, i) => {
+      html += `<tr>
+        <td>${i+1}</td>
+        <td style="color:var(--neon-red)">${h.killerName}</td>
+        <td style="color:var(--neon-cyan)">${h.detectiveName}</td>
+        <td>${h.winner} WIN</td>
+      </tr>`;
     });
-    html += `</div>`;
+    html += `</tbody></table>`;
+    historyContent.innerHTML = html;
+  }
 
-    // Logs Area
-    if(data.logs && data.logs.length > 0) {
-        html += `<div style="margin-top:20px; border-top:1px dashed #444; padding-top:10px; font-size:0.8rem; color:#aaa;">
-                    <div style="margin-bottom:5px;">MISSION LOGS:</div>
-                    ${data.logs.slice(-3).map(l => `<div>> ${l}</div>`).join('')}
-                 </div>`;
+  function renderGame(data) {
+    const isHost = data.host === myUid;
+    const me = data.players.find(p => p.id === myUid);
+    
+    let html = `<div style="text-align:center; margin-bottom:20px;">
+      <h2 style="color:var(--radar-green); font-size:3rem; margin:0;">${roomId}</h2>
+      <div style="color:#666; font-size:0.8rem; letter-spacing:2px;">SECURE CHANNEL</div>
+    </div>`;
+
+    // STATE: WAITING
+    if (data.state === 'waiting') {
+      html += `<div style="text-align:center; padding:20px; border:1px dashed #444;">
+        <h3 style="color:var(--neon-cyan)">LOBBY STATUS: ${data.players.length} / 10 AGENTS</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:20px 0;">
+          ${data.players.map(p => `<div style="background:#111; padding:5px; border:1px solid #333;">${p.name}</div>`).join('')}
+        </div>
+        ${isHost ? `<button onclick="startGame('${roomId}')" class="btn btn-primary">INITIATE MISSION</button>` : `<p class="blink">WAITING FOR HOST...</p>`}
+        ${isHost ? `<button onclick="terminateSession('${roomId}')" class="btn btn-danger" style="margin-top:20px;">TERMINATE SESSION</button>` : ''}
+      </div>`;
+    }
+    
+    // STATE: PLAYING
+    else if (data.state === 'playing') {
+      const roleColor = me.role === 'Killer' ? 'var(--neon-red)' : me.role === 'Detective' ? 'var(--neon-cyan)' : '#fff';
+      
+      html += `<div style="background:rgba(0,0,0,0.5); padding:15px; border-left:4px solid ${roleColor}; margin-bottom:20px;">
+        <div style="font-size:0.8rem; color:#aaa;">ASSIGNED IDENTITY</div>
+        <div style="font-size:2rem; font-weight:bold; color:${roleColor}">${me.role}</div>
+        <div style="font-size:0.8rem;">${me.role === 'Killer' ? 'Target: Eliminate All.' : me.role === 'Detective' ? 'Target: Find the Killer.' : 'Target: Survive.'}</div>
+      </div>`;
+
+      if (!me.alive) {
+        html += `<h2 style="color:red; text-align:center;">K.I.A. (KILLED IN ACTION)</h2>`;
+      } else {
+        html += `<div class="player-list">`;
+        data.players.forEach(p => {
+          let actionBtn = '';
+          if (p.id !== myUid && p.alive) {
+            if (me.role === 'Killer') actionBtn = `<button onclick="performKill('${p.id}')" style="padding:5px 10px; background:var(--neon-red); border:none; color:#fff; cursor:pointer;">KILL</button>`;
+            if (me.role === 'Detective') actionBtn = `<button onclick="performArrest('${p.id}')" style="padding:5px 10px; background:var(--neon-cyan); border:none; color:#000; cursor:pointer;">ARREST</button>`;
+          }
+          
+          html += `<div class="player-row ${!p.alive ? 'dead' : ''}">
+            <span>${p.name} ${!p.alive ? '(DEAD)' : ''}</span>
+            ${actionBtn}
+          </div>`;
+        });
+        html += `</div>`;
+      }
+    }
+
+    // STATE: RESULT
+    else if (data.state === 'result') {
+      const winColor = data.lastWinner === 'KILLER' ? 'var(--neon-red)' : 'var(--neon-cyan)';
+      html += `<div style="text-align:center; padding:30px;">
+        <h1 style="color:${winColor}; font-size:3rem;">${data.lastWinner} WINS</h1>
+        <p style="margin-bottom:30px;">Round ${data.round} Complete.</p>
+        ${isHost ? `<button onclick="startNewRound('${roomId}')" class="btn btn-primary">START NEXT ROUND</button>` : `<p>Host is prepping next round...</p>`}
+        ${isHost ? `<button onclick="terminateSession('${roomId}')" class="btn btn-danger">TERMINATE SESSION</button>` : ''}
+      </div>`;
     }
 
     gameContent.innerHTML = html;
   }
 
-  function renderGameOver(winner) {
-      let color = winner === 'Detectives' ? 'var(--neon-cyan)' : 'var(--neon-red)';
-      let msg = winner === 'Detectives' ? 'MISSION ACCOMPLISHED' : 'MISSION FAILED';
-      
-      gameContent.innerHTML = `
-        <div style="text-align:center; margin-top:50px;">
-            <h1 style="color:${color}; font-size:3rem; text-shadow:0 0 20px ${color};">${msg}</h1>
-            <h3 style="color:#fff;">WINNER: ${winner.toUpperCase()}</h3>
-            <button onclick="location.reload()" class="btn" style="margin-top:30px;">MAIN MENU</button>
-        </div>
-      `;
-  }
-
-  // --- 6. ACTIONS (Global Scope for HTML onclick) ---
-  window.killPlayer = async (targetId, targetName) => {
-    if(!confirm(`Eliminate ${targetName}?`)) return;
-    
-    const roomRef = firestore.collection('detective_rooms').doc(roomId);
-    
-    await roomRef.get().then(doc => {
-        let players = doc.data().players;
-        let logs = doc.data().logs || [];
-        
-        // Mark target as dead
-        players = players.map(p => p.id === targetId ? {...p, alive: false} : p);
-        logs.push(`${targetName} was eliminated.`);
-        
-        // Check if Detective died (Killer Wins)
-        const targetRole = players.find(p => p.id === targetId).role;
-        if (targetRole === 'Detective') {
-            roomRef.update({ players, logs, state: 'finished', winner: 'Killer' });
-        } else {
-            roomRef.update({ players, logs });
-        }
-    });
-  };
-
-  window.arrestPlayer = async (targetId, targetName) => {
-    if(!confirm(`Accuse ${targetName} of being the Killer?`)) return;
-    
-    const roomRef = firestore.collection('detective_rooms').doc(roomId);
-    const doc = await roomRef.get();
+  // --- GAME ACTIONS (Global) ---
+  
+  window.startGame = async (rid) => {
+    const ref = firestore.collection('detective_rooms').doc(rid);
+    const doc = await ref.get();
     const players = doc.data().players;
-    const target = players.find(p => p.id === targetId);
-    
-    if (target.role === 'Killer') {
-        // Correct Guess -> Detectives Win
-        roomRef.update({ state: 'finished', winner: 'Detectives' });
-    } else {
-        // Wrong Guess -> Killer Wins (Detective blew cover)
-        roomRef.update({ state: 'finished', winner: 'Killer' });
-    }
-  };
+    if (players.length < 4) return alert("NEED 4+ AGENTS");
 
-  async function startGame(players) {
-    if(players.length < 4) return alert("Need 4+ players!");
-    
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
+    // Assign Roles
+    const shuffled = [...players].sort(()=>Math.random()-0.5);
     const kId = shuffled[0].id;
     const dId = shuffled[1].id;
 
-    const pWithRoles = players.map(p => {
-        let r = 'Citizen';
-        if(p.id === kId) r = 'Killer';
-        if(p.id === dId) r = 'Detective';
-        return {...p, role: r, alive: true};
-    });
+    const updated = players.map(p => ({
+      ...p,
+      alive: true,
+      role: p.id === kId ? 'Killer' : p.id === dId ? 'Detective' : 'Citizen'
+    }));
 
-    await firestore.collection('detective_rooms').doc(roomId).update({
-        players: pWithRoles,
-        state: 'playing',
-        logs: ['Mission Started. Good luck.']
+    await ref.update({ state: 'playing', players: updated });
+  };
+
+  window.performKill = async (targetId) => {
+    if(!confirm("EXECUTE TARGET?")) return;
+    const ref = firestore.collection('detective_rooms').doc(roomId);
+    
+    // Transaction ensures atomic updates
+    await firestore.runTransaction(async (t) => {
+      const doc = await t.get(ref);
+      const players = doc.data().players;
+      const target = players.find(p => p.id === targetId);
+      
+      target.alive = false; // Kill target
+
+      // Check if Detective died -> Killer Wins
+      if (target.role === 'Detective') {
+        // End Round: Killer Wins
+        const killer = players.find(p => p.role === 'Killer');
+        killer.score += 1000;
+        
+        t.update(ref, { 
+          players: players, 
+          state: 'result', 
+          lastWinner: 'KILLER',
+          history: firebase.firestore.FieldValue.arrayUnion({
+            killerName: killer.name,
+            detectiveName: target.name, // Detective
+            winner: 'KILLER'
+          })
+        });
+      } else {
+        // Just a kill, game continues
+        t.update(ref, { players: players });
+      }
     });
-  }
+  };
+
+  window.performArrest = async (targetId) => {
+    if(!confirm("ACCUSE SUSPECT?")) return;
+    const ref = firestore.collection('detective_rooms').doc(roomId);
+    
+    await firestore.runTransaction(async (t) => {
+      const doc = await t.get(ref);
+      const players = doc.data().players;
+      const target = players.find(p => p.id === targetId);
+      const me = players.find(p => p.id === myUid); // Detective
+      const killer = players.find(p => p.role === 'Killer');
+
+      if (target.role === 'Killer') {
+        // DETECTIVE WINS
+        me.score += 800; // Detective Bonus
+        players.forEach(p => { if(p.role==='Citizen' && p.alive) p.score += 500; }); // Survivors Bonus
+
+        t.update(ref, { 
+          players: players, 
+          state: 'result', 
+          lastWinner: 'DETECTIVE',
+          history: firebase.firestore.FieldValue.arrayUnion({
+            killerName: killer.name,
+            detectiveName: me.name,
+            winner: 'DETECTIVE'
+          })
+        });
+      } else {
+        // WRONG ARREST -> KILLER WINS
+        killer.score += 1000;
+        
+        t.update(ref, { 
+          players: players, 
+          state: 'result', 
+          lastWinner: 'KILLER', // Killer wins because Detective failed
+          history: firebase.firestore.FieldValue.arrayUnion({
+            killerName: killer.name,
+            detectiveName: me.name,
+            winner: 'KILLER (WRONG ARREST)'
+          })
+        });
+      }
+    });
+  };
+
+  window.startNewRound = async (rid) => {
+    const ref = firestore.collection('detective_rooms').doc(rid);
+    await ref.update({ state: 'waiting' }); // Go back to lobby to reshuffle or just start
+    startGame(rid); // Immediately reshuffle and start
+  };
+
+  window.terminateSession = async (rid) => {
+    if(confirm("DESTROY ROOM DATA?")) {
+      await firestore.collection('detective_rooms').doc(rid).delete();
+    }
+  };
+
 });
