@@ -28,6 +28,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const openHistoryBtn = document.getElementById('openHistoryBtn');
   const closeHistoryBtn = document.getElementById('closeHistoryBtn');
 
+    // --- FEEDBACK DOM ELEMENTS ---
+  const feedbackModal = document.getElementById('feedbackModal');
+  const submitFeedbackBtn = document.getElementById('submitFeedbackBtn');
+  const skipFeedbackBtn = document.getElementById('skipFeedbackBtn');
+  const feedbackNameInput = document.getElementById('feedbackName');
+
+
   // --- State variables ---
   let unsubscribe = null;
   let roomId = '';
@@ -394,6 +401,72 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }, 100);
     }
+  }
+
+    // --- FEEDBACK LOGIC ---
+
+  // 1. Override Exit Button to Show Modal
+  if(exitLobbyBtn) {
+      exitLobbyBtn.onclick = () => {
+        if(unsubscribe) unsubscribe();
+        // Auto-fill name from current player
+        feedbackNameInput.value = playerName || ""; 
+        feedbackModal.classList.remove('hidden');
+        feedbackModal.style.display = 'flex';
+      };
+  }
+
+  // 2. Submit Feedback
+  if(submitFeedbackBtn) {
+      submitFeedbackBtn.onclick = async () => {
+        const name = document.getElementById('feedbackName').value.trim() || "Anonymous Agent";
+        const suggestion = document.getElementById('feedbackText').value.trim();
+        
+        // Helper to get checked star value
+        const getRating = (groupName) => {
+          const el = document.querySelector(`input[name="${groupName}"]:checked`);
+          return el ? parseInt(el.value) : 0;
+        };
+
+        const ratings = {
+          functionality: getRating('func'),
+          overall: getRating('over'),
+          gui: getRating('gui')
+        };
+
+        if (ratings.overall === 0) {
+            alert("Please provide at least an Overall Rating (Star 2).");
+            return;
+        }
+
+        submitFeedbackBtn.innerText = "TRANSMITTING...";
+        submitFeedbackBtn.disabled = true;
+        
+        try {
+          await db.collection('rmcs_feedback').add({
+            name: name,
+            ratings: ratings,
+            suggestion: suggestion,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          
+          alert("Data Transmitted Successfully. Session Terminated.");
+          location.reload(); // Reloads page to reset game
+        } catch (error) {
+          console.error("Transmission Failed:", error);
+          alert("Error sending feedback. Exiting anyway.");
+          location.reload();
+        }
+      };
+  }
+
+  // 3. Skip Feedback
+  if(skipFeedbackBtn) {
+      skipFeedbackBtn.onclick = () => {
+        if(confirm("Abort Debriefing? Feedback data will be lost.")) {
+          location.reload();
+        }
+      };
   }
 
 
