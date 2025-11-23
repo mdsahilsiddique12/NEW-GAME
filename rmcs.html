@@ -148,6 +148,36 @@
       box-shadow: 0 0 30px #ff003c;
     }
 
+        /* --- FIXED STAR RATING CSS --- */
+    .star-rating {
+      display: flex;
+      flex-direction: row-reverse; /* This makes the stars flow 1 to 5 visually */
+      justify-content: flex-end;
+      gap: 5px;
+    }
+    
+    .star-rating input {
+      display: none; /* Hide the actual radio buttons */
+    }
+    
+    .star-rating label {
+      font-size: 30px; 
+      cursor: pointer; 
+      color: #4b5563; /* Default Gray */
+      transition: color 0.2s ease;
+    }
+
+    /* COLOR LOGIC:
+       When you hover a star, or when a star is checked,
+       color THAT star and ALL stars that follow it in the DOM (which are visually to the left) 
+    */
+    .star-rating label:hover,
+    .star-rating label:hover ~ label,
+    .star-rating input:checked ~ label {
+      color: var(--neon-green) !important; 
+      text-shadow: 0 0 15px var(--neon-green);
+    }
+
     /* Room Code Display */
     .room-code-display {
       background: rgba(0, 0, 0, 0.5);
@@ -485,7 +515,7 @@
        <div class="h-full bg-neon-green animate-[loadingBar_2s_ease-in-out_infinite]"></div>
     </div>
   </div>
-    <!-- FEEDBACK MODAL (Add this before <footer>) -->
+  <!-- FEEDBACK MODAL -->
   <div id="feedbackModal" class="fixed inset-0 hidden z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4">
     <div class="bg-[#0a0a15] border-2 border-neon-pink w-full max-w-md rounded-xl flex flex-col shadow-[0_0_50px_rgba(188,19,254,0.3)] relative animate-[cyberFadeIn_0.4s_ease-out]">
       
@@ -505,36 +535,37 @@
         <!-- Rating 1: Game Functionality -->
         <div>
           <label class="block text-gray-400 text-xs font-bold mb-1 tracking-widest">SYSTEM FUNCTIONALITY</label>
-          <div class="star-rating flex gap-2 flex-row-reverse justify-end" id="ratingFunc">
-            <input type="radio" name="func" id="func-5" value="5" class="hidden peer/5"><label for="func-5" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/5:text-neon-green peer-hover/5:text-neon-green">★</label>
-            <input type="radio" name="func" id="func-4" value="4" class="hidden peer/4"><label for="func-4" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/4:text-neon-green peer-hover/4:text-neon-green">★</label>
-            <input type="radio" name="func" id="func-3" value="3" class="hidden peer/3"><label for="func-3" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/3:text-neon-green peer-hover/3:text-neon-green">★</label>
-            <input type="radio" name="func" id="func-2" value="2" class="hidden peer/2"><label for="func-2" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/2:text-neon-green peer-hover/2:text-neon-green">★</label>
-            <input type="radio" name="func" id="func-1" value="1" class="hidden peer/1"><label for="func-1" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/1:text-neon-green peer-hover/1:text-neon-green">★</label>
+          <div class="star-rating" id="ratingFunc">
+            <!-- Note: Order is 5 down to 1 for CSS logic -->
+            <input type="radio" name="func" id="func-5" value="5"><label for="func-5">★</label>
+            <input type="radio" name="func" id="func-4" value="4"><label for="func-4">★</label>
+            <input type="radio" name="func" id="func-3" value="3"><label for="func-3">★</label>
+            <input type="radio" name="func" id="func-2" value="2"><label for="func-2">★</label>
+            <input type="radio" name="func" id="func-1" value="1"><label for="func-1">★</label>
           </div>
         </div>
 
         <!-- Rating 2: Overall Game -->
         <div>
           <label class="block text-gray-400 text-xs font-bold mb-1 tracking-widest">OVERALL EXPERIENCE</label>
-          <div class="star-rating flex gap-2 flex-row-reverse justify-end" id="ratingOverall">
-            <input type="radio" name="over" id="over-5" value="5" class="hidden peer/5"><label for="over-5" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/5:text-neon-green peer-hover/5:text-neon-green">★</label>
-            <input type="radio" name="over" id="over-4" value="4" class="hidden peer/4"><label for="over-4" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/4:text-neon-green peer-hover/4:text-neon-green">★</label>
-            <input type="radio" name="over" id="over-3" value="3" class="hidden peer/3"><label for="over-3" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/3:text-neon-green peer-hover/3:text-neon-green">★</label>
-            <input type="radio" name="over" id="over-2" value="2" class="hidden peer/2"><label for="over-2" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/2:text-neon-green peer-hover/2:text-neon-green">★</label>
-            <input type="radio" name="over" id="over-1" value="1" class="hidden peer/1"><label for="over-1" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/1:text-neon-green peer-hover/1:text-neon-green">★</label>
+          <div class="star-rating" id="ratingOverall">
+            <input type="radio" name="over" id="over-5" value="5"><label for="over-5">★</label>
+            <input type="radio" name="over" id="over-4" value="4"><label for="over-4">★</label>
+            <input type="radio" name="over" id="over-3" value="3"><label for="over-3">★</label>
+            <input type="radio" name="over" id="over-2" value="2"><label for="over-2">★</label>
+            <input type="radio" name="over" id="over-1" value="1"><label for="over-1">★</label>
           </div>
         </div>
 
         <!-- Rating 3: GUI -->
         <div>
           <label class="block text-gray-400 text-xs font-bold mb-1 tracking-widest">VISUAL INTERFACE (GUI)</label>
-          <div class="star-rating flex gap-2 flex-row-reverse justify-end" id="ratingGui">
-            <input type="radio" name="gui" id="gui-5" value="5" class="hidden peer/5"><label for="gui-5" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/5:text-neon-green peer-hover/5:text-neon-green">★</label>
-            <input type="radio" name="gui" id="gui-4" value="4" class="hidden peer/4"><label for="gui-4" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/4:text-neon-green peer-hover/4:text-neon-green">★</label>
-            <input type="radio" name="gui" id="gui-3" value="3" class="hidden peer/3"><label for="gui-3" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/3:text-neon-green peer-hover/3:text-neon-green">★</label>
-            <input type="radio" name="gui" id="gui-2" value="2" class="hidden peer/2"><label for="gui-2" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/2:text-neon-green peer-hover/2:text-neon-green">★</label>
-            <input type="radio" name="gui" id="gui-1" value="1" class="hidden peer/1"><label for="gui-1" class="text-2xl text-gray-600 cursor-pointer hover:text-neon-green peer-checked/1:text-neon-green peer-hover/1:text-neon-green">★</label>
+          <div class="star-rating" id="ratingGui">
+            <input type="radio" name="gui" id="gui-5" value="5"><label for="gui-5">★</label>
+            <input type="radio" name="gui" id="gui-4" value="4"><label for="gui-4">★</label>
+            <input type="radio" name="gui" id="gui-3" value="3"><label for="gui-3">★</label>
+            <input type="radio" name="gui" id="gui-2" value="2"><label for="gui-2">★</label>
+            <input type="radio" name="gui" id="gui-1" value="1"><label for="gui-1">★</label>
           </div>
         </div>
 
@@ -553,7 +584,7 @@
 
     </div>
   </div>
-
+  
   <!-- Footer Credit -->
   <footer>
     <div class="credit-box">
