@@ -389,6 +389,8 @@
       <div id="mainMenu" class="menu-screen active-screen">
         <button class="cyber-btn w-full create-btn">Initialize Room</button>
         <button class="cyber-btn w-full secondary join-btn">Join Network</button>
+        <!-- NEW BUTTON -->
+        <button id="openStoreBtn" class="cyber-btn w-full" style="border-color: #FFD700; color: #FFD700;">Access Store</button>
       </div>
 
       <!-- 2. Create Room -->
@@ -412,6 +414,34 @@
         <div class="mt-8 flex flex-col gap-3">
           <button id="joinRoomFinal" class="cyber-btn secondary">Connect</button>
           <button class="cyber-btn danger back-btn">Abort</button>
+        </div>
+      </div>
+      <!-- 5. Store Screen -->
+      <div id="storeScreen" class="menu-screen" style="max-width: 800px;">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 border-b border-gray-800 pb-3">
+           <h2 class="font-cyber text-2xl text-neon-blue uppercase">Black Market</h2>
+           <div class="flex items-center gap-2 bg-black/50 px-3 py-1 rounded border border-yellow-500/30">
+             <span class="text-yellow-400 text-xl">💰</span>
+             <span id="userCoins" class="font-mono text-white text-lg font-bold">0</span>
+           </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-4 mb-6 overflow-x-auto">
+          <button class="store-tab active-tab text-sm font-bold uppercase tracking-widest text-white border-b-2 border-neon-blue pb-1" onclick="filterStore('avatars')">Avatars</button>
+          <button class="store-tab text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-white border-b-2 border-transparent hover:border-gray-500 pb-1" onclick="filterStore('colors')">Name Colors</button>
+          <button class="store-tab text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-white border-b-2 border-transparent hover:border-gray-500 pb-1" onclick="filterStore('sounds')">Sound Packs</button>
+        </div>
+
+        <!-- Items Grid -->
+        <div id="storeGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+           <!-- Items injected by JS -->
+        </div>
+
+        <div class="mt-6">
+          <button class="cyber-btn danger back-btn w-full">Return to Base</button>
         </div>
       </div>
 
