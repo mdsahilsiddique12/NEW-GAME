@@ -45,19 +45,38 @@ document.addEventListener("DOMContentLoaded", function () {
   const storeGrid = document.getElementById('storeGrid');
 
   // --- SOUND ENGINE (MEME PACKS) ---
-  const SoundEffects = {
-    default: {
-      win: new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3'),
-      fail: new Audio('https://assets.mixkit.co/active_storage/sfx/2015/2015-preview.mp3'),
-      reveal: new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3')
-    },
-    meme: {
-      // Replace these with real URLs later. Using placeholders for now.
-      win: new Audio('https://www.myinstants.com/media/sounds/oh-my-god-wow.mp3'), // Placeholder
-      fail: new Audio('https://www.myinstants.com/media/sounds/spongebob-fail.mp3'), // Placeholder
-      reveal: new Audio('https://www.myinstants.com/media/sounds/vine-boom.mp3') // Placeholder
-    }
-  };
+const SoundEffects = {
+  default: {
+    // Sipahi Catches Chor (Police Win)
+    caught: new Audio('sounds/police_siren.mp3'), 
+    
+    // Chor Escapes (Sipahi Fails)
+    escaped: new Audio('sounds/fail_trombone.mp3'), 
+    
+    // Role Reveal (General)
+    reveal: new Audio('sounds/drum_roll.mp3'),
+    
+    // UI Sounds
+    click: new Audio('sounds/click.mp3'),
+    cash: new Audio('sounds/cash.mp3')
+  },
+  
+  meme: {
+    // Sipahi Catches Chor -> "Wah Beta Mauj Kardi" or "Police Siren Remix"
+    caught: new Audio('sounds/mauj_kardi.mp3'), 
+    
+    // Chor Escapes -> "Bada Haramkhor" or "Gaddari Karbe"
+    escaped: new Audio('sounds/haramkhor.mp3'), 
+    
+    // Role Reveal -> "Dheere Dheere" or "Vine Boom"
+    reveal: new Audio('sounds/suspense_boom.mp3'),
+    
+    // UI Sounds
+    click: new Audio('sounds/pop.mp3'),
+    cash: new Audio('sounds/cha_ching.mp3')
+  }
+};
+
 
   function playSound(type) {
     // Check inventory for 'meme_pack'
@@ -471,11 +490,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const res = data.guess;
     const isCorrect = res.correct;
     
-    // Sound Triggers
-    if (!data.scoreUpdated) { // Play only once when result first loads
-       // For you, play appropriate sound
-       if (isCorrect) playSound('win'); 
-       else playSound('fail');
+    // --- PLAY SOUNDS ---
+    if (!data.scoreUpdated) { 
+       // Choose sound based on result
+       if (isCorrect) {
+           playSound('caught'); // Sipahi Won!
+       } else {
+           playSound('escaped'); // Chor Won (Sipahi Failed)!
+       }
     }
 
     if (isHost && !data.scoreUpdated) {
