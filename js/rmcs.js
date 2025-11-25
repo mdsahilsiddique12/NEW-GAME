@@ -1,5 +1,12 @@
 document.addEventListener("DOMContentLoaded", function () {
-  // --- DOM Elements ---
+  // --- FIREBASE & STATE ---
+  const db = firebase.firestore();
+  let unsubscribe = null;
+  let roomId = '';
+  let playerName = '';
+  let currentUserData = null; // Holds XP, Level, Inventory
+
+  // --- DOM ELEMENTS ---
   const mainMenu       = document.getElementById('mainMenu');
   const createScreen   = document.getElementById('createScreen');
   const joinScreen     = document.getElementById('joinScreen');
@@ -18,33 +25,78 @@ document.addEventListener("DOMContentLoaded", function () {
   const scoreboardEl   = document.getElementById('scoreboard');
   const scoreListEl    = document.getElementById('scoreList');
 
-  // Message & History Modals
+  // Modals
   const messageBox     = document.getElementById('messageBox');
-  const messageBoxTitle = document.getElementById('messageBoxTitle');
-  const messageBoxBody  = document.getElementById('messageBoxBody');
-  const messageBoxClose = document.getElementById('messageBoxClose');
-  
-  const historyModal = document.getElementById('historyModal');
+  const historyModal   = document.getElementById('historyModal');
   const openHistoryBtn = document.getElementById('openHistoryBtn');
   const closeHistoryBtn = document.getElementById('closeHistoryBtn');
 
-    // --- FEEDBACK DOM ELEMENTS ---
-  const feedbackModal = document.getElementById('feedbackModal');
+  // Feedback DOM
+  const feedbackModal     = document.getElementById('feedbackModal');
   const submitFeedbackBtn = document.getElementById('submitFeedbackBtn');
-  const skipFeedbackBtn = document.getElementById('skipFeedbackBtn');
+  const skipFeedbackBtn   = document.getElementById('skipFeedbackBtn');
   const feedbackNameInput = document.getElementById('feedbackName');
 
+  // --- SOUND ENGINE (MEME PACKS) ---
+  const SoundEffects = {
+    default: {
+      win: new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3'),
+      fail: new Audio('https://assets.mixkit.co/active_storage/sfx/2015/2015-preview.mp3'),
+      reveal: new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3')
+    },
+    meme: {
+      // Replace these with real URLs later. Using placeholders for now.
+      win: new Audio('https://www.myinstants.com/media/sounds/oh-my-god-wow.mp3'), // Placeholder
+      fail: new Audio('https://www.myinstants.com/media/sounds/spongebob-fail.mp3'), // Placeholder
+      reveal: new Audio('https://www.myinstants.com/media/sounds/vine-boom.mp3') // Placeholder
+    }
+  };
 
-  // --- State variables ---
-  let unsubscribe = null;
-  let roomId = '';
-  let playerName = '';
-
-  function selfUid() {
-    return firebase.auth().currentUser ? firebase.auth().currentUser.uid : null;
+  function playSound(type) {
+    // Check inventory for 'meme_pack'
+    const pack = (currentUserData && currentUserData.inventory && currentUserData.inventory.includes('meme_pack')) ? 'meme' : 'default';
+    try {
+      if(SoundEffects[pack][type]) {
+        SoundEffects[pack][type].currentTime = 0;
+        SoundEffects[pack][type].play();
+      }
+    } catch(e) { console.log("Audio blocked:", e); }
   }
 
-  // --- Navigation ---
+  // --- USER PROFILE SYSTEM (XP & COSMETICS) ---
+  async function authAndLoadUser() {
+    if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
+    const uid = firebase.auth().currentUser.uid;
+
+    const userRef = db.collection('users').doc(uid);
+    const doc = await userRef.get();
+
+    if (!doc.exists) {
+      // New User Profile
+      const initialData = {
+        inventory: [], // e.g. ['gold_name', 'robot_avatar', 'meme_pack']
+        coins: 0,
+        xp: 0,
+        level: 1,
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await userRef.set(initialData);
+      currentUserData = initialData;
+    } else {
+      currentUserData = doc.data();
+    }
+    return uid;
+  }
+
+  function getAvatarIcon(inventory) {
+    if (!inventory) return '👤';
+    if (inventory.includes('robot_avatar')) return '🤖';
+    if (inventory.includes('alien_avatar')) return '👽';
+    if (inventory.includes('hacker_avatar')) return '🕵️';
+    return '👤';
+  }
+
+  // --- NAVIGATION ---
   function showScreen(show) {
     [mainMenu, createScreen, joinScreen, gameScreen].forEach(s => {
       if(s) { s.classList.remove('active-screen'); s.style.display = 'none'; }
@@ -56,11 +108,10 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelector('.join-btn').onclick   = () => showScreen(joinScreen);
   document.querySelectorAll('.back-btn').forEach(btn => btn.onclick = () => showScreen(mainMenu));
 
-  // History Modal Toggles
   if(openHistoryBtn) openHistoryBtn.onclick = () => { if(historyModal) { historyModal.classList.remove('hidden'); historyModal.style.display = 'flex'; }};
   if(closeHistoryBtn) closeHistoryBtn.onclick = () => { if(historyModal) { historyModal.classList.add('hidden'); historyModal.style.display = 'none'; }};
 
-  // --- Logic Helpers (Client Side) ---
+  // --- GAME LOGIC HELPERS ---
   function assignRoles(players) {
     const roles = ['Raja', 'Mantri', 'Chor', 'Sipahi'];
     const shuffled = [...roles].sort(() => Math.random() - 0.5);
@@ -78,7 +129,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return points;
   }
 
-  // --- UI Renderers ---
+  // --- UI RENDERERS ---
   function renderRoomCode(code) {
     if (!currentRoomCode) return;
     currentRoomCode.innerHTML = `
@@ -93,12 +144,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderPlayersList(players) {
     if (!playersListEl) return;
-    const uid = selfUid();
-    playersListEl.innerHTML = players.map(p => `
-      <div class="flex items-center gap-2 px-3 py-1 border border-gray-700 bg-gray-900/50 rounded text-gray-300 text-xs uppercase font-bold">
-        <span class="${p.id === uid ? 'text-neon-green' : 'text-neon-blue'} text-lg">●</span>
-        <span>${p.name}</span>
-      </div>`).join('');
+    const uid = firebase.auth().currentUser.uid;
+    
+    playersListEl.innerHTML = players.map(p => {
+      // PREMIUM STYLING
+      const isVip = p.isVip;
+      const isGold = p.nameColor === 'gold';
+      
+      const nameClass = isGold ? 'text-yellow-400 drop-shadow-[0_0_5px_rgba(255,215,0,0.8)]' : 'text-gray-300';
+      const borderClass = isVip ? 'border-yellow-500/50 bg-yellow-500/10' : 'border-gray-700 bg-gray-900/50';
+      const badgeHtml = isVip ? '<span class="ml-2 text-[10px] bg-yellow-500 text-black px-1 rounded font-bold">PRO</span>' : '';
+
+      return `
+        <div class="flex items-center gap-2 px-3 py-1 border ${borderClass} rounded text-xs uppercase font-bold transition hover:scale-105">
+          <span class="${p.id === uid ? 'text-neon-green' : 'text-neon-blue'} text-lg">●</span>
+          <span class="${nameClass}">${p.name}</span>
+          ${badgeHtml}
+        </div>`;
+    }).join('');
   }
 
   function renderScoreboard(scores, players) {
@@ -152,19 +215,22 @@ document.addEventListener("DOMContentLoaded", function () {
       avatar.className = 'avatar';
       avatar.style.left = (x - 35) + 'px';
       avatar.style.top  = (y - 35) + 'px';
+      
       const isSelf = players[i].id === selfId;
       
+      // Avatar Logic
+      const icon = getAvatarIcon(players[i].inventory); // Use premium avatar if available
+
       if(isSelf) { avatar.style.borderColor = 'var(--neon-green)'; avatar.style.boxShadow = '0 0 20px var(--neon-green)'; }
       else { avatar.style.borderColor = 'var(--neon-blue)'; }
 
-      avatar.innerHTML = `<span class="text-3xl drop-shadow-md">${isSelf ? 'YOU' : '👤'}</span><div class="avatar-name" style="${isSelf ? 'color:var(--neon-green)' : ''}">${players[i].name}</div>`;
+      avatar.innerHTML = `<span class="text-3xl drop-shadow-md">${icon}</span><div class="avatar-name" style="${isSelf ? 'color:var(--neon-green)' : ''}">${players[i].name}</div>`;
       gameTable.appendChild(avatar);
     }
   }
 
-  // --- Main Room Listener ---
-  // --- Main Room Listener ---
-  let currentRound = 0; // Track round number locally
+  // --- MAIN ROOM LISTENER ---
+  let currentRound = 0; 
   let lastPhase = '';
 
   function listenToRoom(roomCode) {
@@ -173,7 +239,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     unsubscribe = roomRef.onSnapshot(doc => {
       const data = doc.data();
-      const selfId = selfUid();
+      const selfId = firebase.auth().currentUser.uid;
 
       if (!data) { alert("Room deleted."); showScreen(mainMenu); roomId = ''; return; }
       if (!data.players.some(p => p.id === selfId)) { alert("You were removed."); showScreen(mainMenu); return; }
@@ -186,25 +252,23 @@ document.addEventListener("DOMContentLoaded", function () {
       const isHost = selfId === data.host;
       if (cancelRoomBtn) { cancelRoomBtn.style.display = isHost ? 'block' : 'none'; cancelRoomBtn.onclick = isHost ? handleCancelRoom : null; }
 
-      // Calculate Round Number based on history length
       const roundNum = (data.history ? data.history.length : 0) + 1;
 
-      // --- Round Transition Logic ---
+      // Round Transition
       const transitionEl = document.getElementById('roundTransition');
       const roundTitle = document.getElementById('roundTitle');
-      
-      // Trigger transition ONLY when entering 'reveal' phase from a different phase (like 'lobby' or 'roundResult')
       if (data.phase === 'reveal' && lastPhase !== 'reveal') {
           if(transitionEl && roundTitle) {
               roundTitle.textContent = `ROUND ${roundNum}`;
               transitionEl.classList.remove('hidden');
               transitionEl.style.display = 'flex';
-              
-              // Hide after 3 seconds
               setTimeout(() => {
                   transitionEl.classList.add('hidden');
                   transitionEl.style.display = 'none';
               }, 3000);
+              
+              // Play Sound
+              playSound('reveal');
           }
       }
       lastPhase = data.phase;
@@ -228,7 +292,6 @@ document.addEventListener("DOMContentLoaded", function () {
           };
         }
       } else {
-        // In Game
         if (startGameBtn) startGameBtn.style.display = 'none';
         if (gameContent) gameContent.style.display = 'flex';
         
@@ -239,14 +302,12 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-
   function showRoleRevealScreen(data, selfId, roomRef) {
     const p = data.playerRoles.find(p => p.id === selfId);
     const isRS = (p.role === 'Raja' || p.role === 'Sipahi');
     const revealed = data.revealed || [];
     const amIRevealed = revealed.some(r => r.id === selfId);
 
-    // Auto-progress
     if (data.host === selfId) {
         const rRevealed = revealed.some(r => r.role === 'Raja');
         const sRevealed = revealed.some(r => r.role === 'Sipahi');
@@ -275,7 +336,6 @@ document.addEventListener("DOMContentLoaded", function () {
   function showSipahiGuessUI(data, selfId, roomRef) {
     const p = data.playerRoles.find(p => p.id === selfId);
     
-    // Timer Logic could be added here, but for simplicity relying on users.
     if (p.role !== 'Sipahi') {
         gameContent.innerHTML = `<div class="text-center p-6 animate-fade-in"><div class="text-6xl mb-4 animate-bounce">🛡️</div><h3 class="text-neon-blue text-xl font-bold">Sipahi is Analyzing...</h3></div>`;
         return;
@@ -300,21 +360,28 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // --- Round Result (Cyberpunk) ---
-  // --- Round Result (Fixed) ---
   function showRoundResult(data, selfId, roomRef, isHost) {
     const res = data.guess;
     const isCorrect = res.correct;
     
-    console.log("Round Result - Am I Host?", isHost); // Debug Log
+    // Sound Triggers
+    if (!data.scoreUpdated) { // Play only once when result first loads
+       // For you, play appropriate sound
+       if (isCorrect) playSound('win'); 
+       else playSound('fail');
+    }
 
-    // --- HOST LOGIC: Calculate & Save Scores ---
     if (isHost && !data.scoreUpdated) {
        const roundPoints = calculateRoundPoints(data.playerRoles, isCorrect);
        const historyEntry = { timestamp: new Date().toISOString(), roles: data.playerRoles, points: roundPoints, result: isCorrect?'Caught':'Escaped' };
        
        const newScores = { ...data.scores };
        Object.keys(roundPoints).forEach(uid => { newScores[uid] = (newScores[uid] || 0) + roundPoints[uid]; });
+
+       // Award XP to everyone (Simple +10xp per round)
+       data.playerRoles.forEach(p => {
+          db.collection('users').doc(p.id).update({ xp: firebase.firestore.FieldValue.increment(10) });
+       });
 
        roomRef.update({
            scores: newScores,
@@ -326,7 +393,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const roleMap = {}; 
     data.playerRoles.forEach(p => roleMap[p.role] = p.name);
     
-    // --- UI Construction ---
     const resultText = isCorrect ? 'TARGET NEUTRALIZED' : 'MISSION FAILED';
     const resultColor = isCorrect ? 'text-neon-green' : 'text-red-500';
     const resultEmoji = isCorrect ? '🎯' : '❌';
@@ -356,7 +422,6 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
       </div>`;
 
-    // --- Button Logic ---
     const hostControlsHtml = isHost 
       ? `<button id="nextRoundBtn" class="cyber-btn w-full mt-4 py-3 shadow-[0_0_15px_rgba(0,243,255,0.4)]">REBOOT SYSTEM</button>` 
       : `<div class="mt-4 text-xs text-gray-500 animate-pulse text-center">WAITING FOR HOST REBOOT...</div>`;
@@ -364,30 +429,21 @@ document.addEventListener("DOMContentLoaded", function () {
     gameContent.innerHTML = `
       <div class="flex flex-col items-center w-full animate-fade-in px-2">
         <div class="text-6xl mb-2 filter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">${resultEmoji}</div>
-        
-        <!-- Fixed Text Sizing -->
         <h2 class="font-cyber text-xl md:text-2xl ${resultColor} uppercase tracking-widest text-center drop-shadow-lg break-words w-full leading-tight">
           ${resultText}
         </h2>
-        
         ${resultsHtml}
         ${hostControlsHtml}
       </div>`;
 
-    // --- Event Listener Attachment ---
     if (isHost) {
-        // Use a slight delay to ensure innerHTML is processed
         setTimeout(() => {
             const nb = document.getElementById('nextRoundBtn');
             if (nb) {
-                console.log("Button found, attaching listener");
                 nb.onclick = async () => {
-                    console.log("Rebooting...");
                     nb.textContent = "INITIALIZING...";
                     nb.disabled = true; 
-                    
                     const roles = assignRoles(data.playerRoles); 
-                    
                     await roomRef.update({ 
                         phase: 'reveal', 
                         playerRoles: roles, 
@@ -396,98 +452,83 @@ document.addEventListener("DOMContentLoaded", function () {
                         scoreUpdated: false 
                     });
                 };
-            } else {
-                console.error("CRITICAL: Next Round Button NOT found in DOM");
             }
         }, 100);
     }
   }
 
-    // --- FEEDBACK LOGIC ---
-
-  // 1. Override Exit Button to Show Modal
+  // --- FEEDBACK & EXIT LOGIC ---
   if(exitLobbyBtn) {
       exitLobbyBtn.onclick = () => {
         if(unsubscribe) unsubscribe();
-        // Auto-fill name from current player
         feedbackNameInput.value = playerName || ""; 
         feedbackModal.classList.remove('hidden');
         feedbackModal.style.display = 'flex';
       };
   }
 
-  // 2. Submit Feedback
   if(submitFeedbackBtn) {
       submitFeedbackBtn.onclick = async () => {
         const name = document.getElementById('feedbackName').value.trim() || "Anonymous Agent";
         const suggestion = document.getElementById('feedbackText').value.trim();
-        
-        // Helper to get checked star value
         const getRating = (groupName) => {
           const el = document.querySelector(`input[name="${groupName}"]:checked`);
           return el ? parseInt(el.value) : 0;
         };
+        const ratings = { functionality: getRating('func'), overall: getRating('over'), gui: getRating('gui') };
 
-        const ratings = {
-          functionality: getRating('func'),
-          overall: getRating('over'),
-          gui: getRating('gui')
-        };
-
-        if (ratings.overall === 0) {
-            alert("Please provide at least an Overall Rating (Star 2).");
-            return;
-        }
+        if (ratings.overall === 0) { alert("Please provide Overall Rating."); return; }
 
         submitFeedbackBtn.innerText = "TRANSMITTING...";
         submitFeedbackBtn.disabled = true;
         
         try {
-          await db.collection('rmcs_feedback').add({
-            name: name,
-            ratings: ratings,
-            suggestion: suggestion,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          
-          alert("Data Transmitted Successfully. Session Terminated.");
-          location.reload(); // Reloads page to reset game
+          await db.collection('rmcs_feedback').add({ name: name, ratings: ratings, suggestion: suggestion, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+          alert("Data Transmitted. Session Terminated.");
+          location.reload();
         } catch (error) {
-          console.error("Transmission Failed:", error);
-          alert("Error sending feedback. Exiting anyway.");
+          alert("Error sending feedback. Exiting.");
           location.reload();
         }
       };
   }
 
-  // 3. Skip Feedback
   if(skipFeedbackBtn) {
-      skipFeedbackBtn.onclick = () => {
-        if(confirm("Abort Debriefing? Feedback data will be lost.")) {
-          location.reload();
-        }
-      };
+      skipFeedbackBtn.onclick = () => { if(confirm("Abort Debriefing?")) location.reload(); };
   }
 
-
-  // --- Setup Handlers ---
   async function handleCancelRoom() {
     if(confirm("Terminate Session?")) await db.collection('rmcs_rooms').doc(roomId).delete();
   }
 
+  // --- CREATE & JOIN (WITH PREMIUM CHECK) ---
   document.getElementById('createRoomFinal').onclick = async () => {
     playerName = document.getElementById('createPlayerName').value.trim();
     let code = document.getElementById('createRoomCode').value.trim().toUpperCase() || Math.random().toString(36).substring(2, 6).toUpperCase();
     if(!playerName) return alert("Name required");
     
+    const uid = await authAndLoadUser(); // Load Premium Data First
+
     const ref = db.collection('rmcs_rooms').doc(code);
     if ((await ref.get()).exists) return alert("Code taken");
 
-    firebase.auth().signInAnonymously().then(creds => {
-        const uid = creds.user.uid;
-        ref.set({ host: uid, players: [{name: playerName, id: uid}], phase: 'lobby', scores: {[uid]:0}, created: firebase.firestore.FieldValue.serverTimestamp() });
-        roomId = code; listenToRoom(roomId); showScreen(gameScreen);
+    const playerData = {
+        name: playerName, 
+        id: uid,
+        // Premium Attributes
+        inventory: currentUserData.inventory, 
+        isVip: currentUserData.inventory.includes('gold_name'),
+        nameColor: currentUserData.inventory.includes('gold_name') ? 'gold' : 'white'
+    };
+
+    ref.set({ 
+        host: uid, 
+        players: [playerData], 
+        phase: 'lobby', 
+        scores: {[uid]:0}, 
+        created: firebase.firestore.FieldValue.serverTimestamp() 
     });
+    roomId = code; listenToRoom(roomId); showScreen(gameScreen);
   };
 
   document.getElementById('joinRoomFinal').onclick = async () => {
@@ -495,16 +536,23 @@ document.addEventListener("DOMContentLoaded", function () {
     let code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
     if(!playerName || !code) return alert("Info required");
 
+    const uid = await authAndLoadUser(); // Load Premium Data First
+    
     const ref = db.collection('rmcs_rooms').doc(code);
     const doc = await ref.get();
     if (!doc.exists) return alert("Room not found");
     
-    firebase.auth().signInAnonymously().then(creds => {
-        const uid = creds.user.uid;
-        if(!doc.data().players.some(p=>p.id===uid)) {
-            ref.update({ players: firebase.firestore.FieldValue.arrayUnion({name: playerName, id: uid}), [`scores.${uid}`]: 0 });
-        }
-        roomId = code; listenToRoom(roomId); showScreen(gameScreen);
-    });
+    const playerData = {
+        name: playerName, 
+        id: uid,
+        inventory: currentUserData.inventory,
+        isVip: currentUserData.inventory.includes('gold_name'),
+        nameColor: currentUserData.inventory.includes('gold_name') ? 'gold' : 'white'
+    };
+
+    if(!doc.data().players.some(p=>p.id===uid)) {
+        ref.update({ players: firebase.firestore.FieldValue.arrayUnion(playerData), [`scores.${uid}`]: 0 });
+    }
+    roomId = code; listenToRoom(roomId); showScreen(gameScreen);
   };
 });
