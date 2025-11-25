@@ -37,6 +37,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const skipFeedbackBtn   = document.getElementById('skipFeedbackBtn');
   const feedbackNameInput = document.getElementById('feedbackName');
 
+
+  // Store and Purchases
+  const storeScreen = document.getElementById('storeScreen');
+  const openStoreBtn = document.getElementById('openStoreBtn');
+  const userCoinsEl = document.getElementById('userCoins');
+  const storeGrid = document.getElementById('storeGrid');
+
   // --- SOUND ENGINE (MEME PACKS) ---
   const SoundEffects = {
     default: {
@@ -62,6 +69,106 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     } catch(e) { console.log("Audio blocked:", e); }
   }
+    // --- STORE DATA ---
+  const storeItems = [
+    // AVATARS
+    { id: 'robot_avatar', type: 'avatars', name: 'Mecha Unit', price: 500, icon: '🤖', desc: 'Cybernetic organism.' },
+    { id: 'alien_avatar', type: 'avatars', name: 'Xenoform', price: 750, icon: '👽', desc: 'Visitor from deep space.' },
+    { id: 'hacker_avatar', type: 'avatars', name: 'Netrunner', price: 1000, icon: '🕵️', desc: 'Master of the grid.' },
+    
+    // NAME COLORS (Designed for High Visibility)
+    { id: 'gold_name', type: 'colors', name: 'Midas Touch', price: 2000, icon: '👑', desc: 'Golden glow text.', css: 'color:#FFD700; text-shadow:0 0 5px black;' },
+    { id: 'neon_name', type: 'colors', name: 'Glitch Red', price: 1500, icon: '🔴', desc: 'Aggressive red neon.', css: 'color:#ff003c; text-shadow:0 0 5px black;' },
+    
+    // SOUND PACKS
+    { id: 'meme_pack', type: 'sounds', name: 'Meme Lord', price: 3000, icon: '📢', desc: 'Funny sound effects.' }
+  ];
+
+  // --- STORE LOGIC ---
+  
+  // 1. Open Store
+  if(openStoreBtn) {
+    openStoreBtn.onclick = async () => {
+      const uid = await authAndLoadUser();
+      userCoinsEl.innerText = currentUserData.coins || 0;
+      renderStore('avatars'); // Default tab
+      showScreen(storeScreen);
+    };
+  }
+
+  // 2. Render Items
+  window.filterStore = (category) => {
+    // Update Tab UI
+    document.querySelectorAll('.store-tab').forEach(t => {
+        t.classList.remove('text-white', 'border-neon-blue');
+        t.classList.add('text-gray-500', 'border-transparent');
+    });
+    event.target.classList.add('text-white', 'border-neon-blue');
+    event.target.classList.remove('text-gray-500', 'border-transparent');
+    
+    renderStore(category);
+  };
+
+  function renderStore(category) {
+    storeGrid.innerHTML = storeItems.filter(i => i.type === category).map(item => {
+      const owned = currentUserData.inventory.includes(item.id);
+      
+      return `
+        <div class="bg-black/60 border ${owned ? 'border-green-500' : 'border-gray-700'} p-4 rounded flex flex-col items-center text-center hover:bg-gray-900/80 transition">
+          <div class="text-4xl mb-2">${item.icon}</div>
+          <h4 class="font-cyber text-white text-sm tracking-wider">${item.name}</h4>
+          <p class="text-gray-400 text-xs mb-3 font-mono h-8 leading-tight overflow-hidden">${item.desc}</p>
+          
+          ${owned 
+            ? `<button class="w-full bg-green-900/30 text-green-400 border border-green-500 text-xs py-2 rounded cursor-default uppercase font-bold">OWNED</button>`
+            : `<button onclick="buyItem('${item.id}', ${item.price})" class="w-full bg-neon-blue/10 hover:bg-neon-blue/30 text-neon-blue border border-neon-blue text-xs py-2 rounded uppercase font-bold transition">
+                 BUY ${item.price} 💰
+               </button>`
+          }
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 3. Buy Function
+  window.buyItem = async (itemId, price) => {
+    if (currentUserData.coins < price) {
+      alert("INSUFFICIENT FUNDS. Complete missions to earn credits.");
+      return;
+    }
+
+    if (!confirm(`Purchase this item for ${price} coins?`)) return;
+
+    const uid = firebase.auth().currentUser.uid;
+    const userRef = db.collection('users').doc(uid);
+
+    try {
+      // Use Transaction for safety
+      await db.runTransaction(async (t) => {
+        const doc = await t.get(userRef);
+        const data = doc.data();
+        if (data.coins < price) throw "Not enough coins";
+        
+        const newCoins = data.coins - price;
+        const newInventory = [...data.inventory, itemId];
+        
+        t.update(userRef, { coins: newCoins, inventory: newInventory });
+      });
+      
+      // Refresh Local Data
+      await authAndLoadUser();
+      userCoinsEl.innerText = currentUserData.coins;
+      
+      // Re-render current tab to show "OWNED"
+      const currentTab = storeItems.find(i => i.id === itemId).type;
+      renderStore(currentTab);
+      
+      alert("TRANSACTION SUCCESSFUL.");
+    } catch (e) {
+      alert("TRANSACTION FAILED: " + e);
+    }
+  };
+
 
   // --- USER PROFILE SYSTEM (XP & COSMETICS) ---
   async function authAndLoadUser() {
