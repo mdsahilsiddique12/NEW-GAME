@@ -46,34 +46,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // --- SOUND ENGINE (MEME PACKS) ---
 const SoundEffects = {
-  default: {
+  meme: {
     // Sipahi Catches Chor (Police Win)
-    caught: new Audio('sounds/police_siren.mp3'), 
+    caught: new Audio('sounds/sabash.mp3'), 
     
     // Chor Escapes (Sipahi Fails)
-    escaped: new Audio('sounds/fail_trombone.mp3'), 
+    escaped: new Audio('sounds/ias.mp3'), 
     
     // Role Reveal (General)
     reveal: new Audio('sounds/drum_roll.mp3'),
     
     // UI Sounds
-    click: new Audio('sounds/click.mp3'),
+    click: new Audio('sounds/bubble.mp3'),
     cash: new Audio('sounds/cash.mp3')
   },
   
-  meme: {
+  default: {
     // Sipahi Catches Chor -> "Wah Beta Mauj Kardi" or "Police Siren Remix"
-    caught: new Audio('sounds/mauj_kardi.mp3'), 
+    caught: new Audio('sounds/sabash.mp3'), 
     
     // Chor Escapes -> "Bada Haramkhor" or "Gaddari Karbe"
-    escaped: new Audio('sounds/haramkhor.mp3'), 
+    escaped: new Audio('sounds/anyay.mp3'), 
     
     // Role Reveal -> "Dheere Dheere" or "Vine Boom"
-    reveal: new Audio('sounds/suspense_boom.mp3'),
+    reveal: new Audio('sounds/vine-boom.mp3'),
     
     // UI Sounds
-    click: new Audio('sounds/pop.mp3'),
-    cash: new Audio('sounds/cha_ching.mp3')
+    click: new Audio('sounds/bubble.mp3'),
+    cash: new Audio('sounds/ca.mp3')
   }
 };
 
