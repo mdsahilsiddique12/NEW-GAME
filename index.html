@@ -16,6 +16,7 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <!-- Your Config File -->
   <script src="js/firebase-config.js"></script>
 
   <style>
@@ -174,7 +175,7 @@
     /* Modals */
     .modal-overlay { background: rgba(0,0,0,0.92); backdrop-filter: blur(15px); }
     
-    /* --- UPGRADE PLANS (FIXED) --- */
+    /* Plans */
     .plan-box { 
         background: rgba(15, 23, 42, 0.9);
         border: 1px solid rgba(255,255,255,0.15); 
@@ -184,7 +185,6 @@
     }
     .plan-box:hover { transform: translateY(-5px); background: rgba(30, 41, 59, 1); }
     
-    /* ELITE Styling (Most Popular) */
     .plan-box.elite {
         background: rgba(0, 243, 255, 0.05);
         border: 2px solid var(--neon-blue);
@@ -193,11 +193,9 @@
     }
     .plan-box.elite:hover { transform: scale(1.08); box-shadow: 0 0 50px rgba(0, 243, 255, 0.15); }
 
-    /* LEGENDARY Styling */
     .plan-box.legendary { border: 2px solid rgba(255, 215, 0, 0.5); }
     .plan-box.legendary:hover { border-color: var(--neon-gold); box-shadow: 0 0 40px rgba(255, 215, 0, 0.2); }
 
-    /* BADGE FIX */
     .popular-badge {
         position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
         background: var(--neon-blue); color: #000;
@@ -207,7 +205,6 @@
         white-space: nowrap; z-index: 20;
     }
 
-    /* BUTTON FIXES */
     .select-btn {
         width: 100%; padding: 14px; margin-top: auto;
         font-family: 'Orbitron', sans-serif; font-weight: 700; letter-spacing: 2px;
@@ -222,7 +219,6 @@
     .select-btn.legendary { border: 2px solid var(--neon-gold); color: var(--neon-gold); background: transparent; }
     .select-btn.legendary:hover { background: var(--neon-gold); color: black; box-shadow: 0 0 30px var(--neon-gold); }
 
-    /* Tactical Corners */
     .tactical-border { position: relative; overflow: hidden; }
     .tactical-border::before, .tactical-border::after {
         content: ''; position: absolute; width: 20px; height: 20px;
@@ -236,7 +232,6 @@
       0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 80% { transform: translate(2px, -2px); } 100% { transform: translate(0); }
     }
 
-    /* Footer */
     footer { margin-top: auto; padding: 2rem; text-align: center; font-family: 'Rajdhani', sans-serif; z-index: 10; color:#64748b; font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; }
   </style>
 </head>
@@ -335,9 +330,9 @@
           <button onclick="buyPlan('rookie')" class="select-btn rookie">SELECT PLAN</button>
         </div>
 
-        <!-- ELITE (FIXED) -->
+        <!-- ELITE -->
         <div class="plan-box elite p-8 rounded-xl text-center relative">
-          <div class="popular-badge">MOST POPULAR</div> <!-- Fixed Badge -->
+          <div class="popular-badge">MOST POPULAR</div>
           
           <h3 class="font-cyber text-3xl text-neon-blue mb-2 tracking-wider drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">ELITE</h3>
           <div class="text-6xl font-bold text-white mb-6 font-cyber">₹89 <span class="text-sm font-normal text-gray-400 font-sans">/mo</span></div>
@@ -367,73 +362,8 @@
     </div>
   </div>
 
-  <script>
-    // --- AUTH & LOGIC ---
-    const authModal = document.getElementById('authModal');
-    const upgradeModal = document.getElementById('upgradeModal');
-    const loginBtn = document.getElementById('loginBtn');
-    const userInfo = document.getElementById('userInfo');
-    
-    // ERROR FIX: Do not redeclare 'db' if it exists in firebase-config.js
-    // We simply access it.
-    // If firebase-config.js did NOT export it, we would use: const db = firebase.firestore();
-    // But the error says it IS declared, so we leave this blank.
-    
-    firebase.auth().onAuthStateChanged(async (user) => {
-      if (user) {
-        authModal.classList.add('hidden');
-        loginBtn.classList.add('hidden');
-        userInfo.classList.remove('hidden');
-        userInfo.classList.add('flex');
-        document.getElementById('userName').innerText = user.displayName || "Agent_" + user.uid.substring(0, 4);
-
-        const userRef = db.collection('users').doc(user.uid);
-        let doc = await userRef.get();
-
-        if (!doc.exists) {
-          const newProfile = {
-            username: user.displayName || "Agent_" + user.uid.substring(0, 4),
-            email: user.email || "guest",
-            coins: 100, xp: 0, level: 1, plan: 'free', inventory: [],
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          };
-          await userRef.set(newProfile);
-          doc = await userRef.get();
-        }
-
-        const data = doc.data();
-        document.getElementById('userCoins').innerText = (data.coins || 0) + " CR";
-        localStorage.setItem('rmcs_uid', user.uid);
-        localStorage.setItem('rmcs_plan', data.plan);
-      } else {
-        setTimeout(() => authModal.classList.remove('hidden'), 800);
-      }
-    });
-
-    function openAuthModal() { authModal.classList.remove('hidden'); }
-    
-    function loginGoogle() {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      firebase.auth().signInWithPopup(provider).catch(alert);
-    }
-
-    function loginGuest() {
-      firebase.auth().signInAnonymously().then(() => authModal.classList.add('hidden')).catch(alert);
-    }
-
-    function launchGame(page) {
-      if (!firebase.auth().currentUser) {
-        alert("ACCESS DENIED. Identification required.");
-        openAuthModal();
-        return;
-      }
-      window.location.href = page;
-    }
-
-    function openUpgradeModal() { upgradeModal.classList.remove('hidden'); }
-    function closeUpgradeModal() { upgradeModal.classList.add('hidden'); }
-    function buyPlan(plan) { alert(`Selected: ${plan.toUpperCase()}. Gateway connecting...`); }
-  </script>
+  <!-- LOAD INDEX LOGIC -->
+  <script src="js/index.js"></script>
 
 </body>
 </html>
