@@ -25,8 +25,8 @@
       --neon-red: #ef4444;
       --neon-gold: #FFD700;
       --bg-dark: #030712;   
-      --card-surface: rgba(15, 23, 42, 0.6); /* Darker, more opaque for contrast */
-      --card-border: rgba(255, 255, 255, 0.15); /* Brighter border */
+      --card-surface: rgba(15, 23, 42, 0.8);
+      --card-border: rgba(255, 255, 255, 0.15);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -111,7 +111,7 @@
     .card {
       position: relative; width: 340px; height: 480px;
       background: var(--card-surface);
-      border: 1px solid var(--card-border); /* Explicit border */
+      border: 1px solid var(--card-border);
       border-radius: 24px;
       display: flex; flex-direction: column; align-items: center; justify-content: space-between;
       padding: 3rem 2rem; text-decoration: none; cursor: pointer;
@@ -174,19 +174,55 @@
     /* Modals */
     .modal-overlay { background: rgba(0,0,0,0.92); backdrop-filter: blur(15px); }
     
-    /* Upgrade Plans */
+    /* --- UPGRADE PLANS (FIXED) --- */
     .plan-box { 
-        background: rgba(15, 23, 42, 0.8); /* Darker background */
-        border: 1px solid rgba(255,255,255,0.2); /* Visible border */
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(255,255,255,0.15); 
         transition: 0.3s; position: relative; 
-        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        display: flex; flex-direction: column;
     }
-    .plan-box:hover { border-color: var(--neon-blue); transform: translateY(-5px); background: rgba(30, 41, 59, 0.9); }
+    .plan-box:hover { transform: translateY(-5px); background: rgba(30, 41, 59, 1); }
     
-    .plan-box.legendary { border: 2px solid rgba(255, 215, 0, 0.3); }
+    /* ELITE Styling (Most Popular) */
+    .plan-box.elite {
+        background: rgba(0, 243, 255, 0.05);
+        border: 2px solid var(--neon-blue);
+        transform: scale(1.05);
+        z-index: 10;
+    }
+    .plan-box.elite:hover { transform: scale(1.08); box-shadow: 0 0 50px rgba(0, 243, 255, 0.15); }
+
+    /* LEGENDARY Styling */
+    .plan-box.legendary { border: 2px solid rgba(255, 215, 0, 0.5); }
     .plan-box.legendary:hover { border-color: var(--neon-gold); box-shadow: 0 0 40px rgba(255, 215, 0, 0.2); }
 
-    /* Tactical Corners for Modal */
+    /* BADGE FIX */
+    .popular-badge {
+        position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+        background: var(--neon-blue); color: #000;
+        font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 0.75rem;
+        padding: 6px 16px; border-radius: 20px;
+        box-shadow: 0 0 15px var(--neon-blue); letter-spacing: 1px;
+        white-space: nowrap; z-index: 20;
+    }
+
+    /* BUTTON FIXES */
+    .select-btn {
+        width: 100%; padding: 14px; margin-top: auto;
+        font-family: 'Orbitron', sans-serif; font-weight: 700; letter-spacing: 2px;
+        border-radius: 6px; transition: 0.3s; cursor: pointer; text-transform: uppercase;
+    }
+    .select-btn.rookie { border: 2px solid #64748b; color: #94a3b8; background: transparent; }
+    .select-btn.rookie:hover { border-color: white; color: white; background: rgba(255,255,255,0.05); }
+    
+    .select-btn.elite { background: var(--neon-blue); color: #000; border: none; box-shadow: 0 0 20px rgba(0, 243, 255, 0.3); }
+    .select-btn.elite:hover { background: white; box-shadow: 0 0 30px rgba(255, 255, 255, 0.5); }
+
+    .select-btn.legendary { border: 2px solid var(--neon-gold); color: var(--neon-gold); background: transparent; }
+    .select-btn.legendary:hover { background: var(--neon-gold); color: black; box-shadow: 0 0 30px var(--neon-gold); }
+
+    /* Tactical Corners */
     .tactical-border { position: relative; overflow: hidden; }
     .tactical-border::before, .tactical-border::after {
         content: ''; position: absolute; width: 20px; height: 20px;
@@ -284,49 +320,47 @@
         <p class="text-gray-400 font-mono text-sm uppercase tracking-widest mt-4">Unlock Elite Status & Perks</p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
         
         <!-- ROOKIE -->
-        <div class="plan-box p-8 rounded-xl flex flex-col items-center text-center">
-          <h3 class="font-cyber text-2xl text-gray-300 mb-2 tracking-wider">ROOKIE</h3>
+        <div class="plan-box p-8 rounded-xl text-center">
+          <h3 class="font-cyber text-2xl text-gray-400 mb-2 tracking-wider">ROOKIE</h3>
           <div class="text-5xl font-bold text-white mb-6 font-cyber">₹29 <span class="text-sm font-normal text-gray-500 font-sans">/mo</span></div>
           <ul class="text-sm text-gray-400 space-y-4 mb-8 flex-1 text-left w-full pl-4 font-mono">
-            <li class="flex items-center gap-3"><i class="fa-solid fa-coins text-yellow-500"></i> 500 Coins / month</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-shield text-gray-400"></i> Bronze Badge</li>
+            <li class="flex items-center gap-3"><i class="fa-solid fa-coins text-yellow-600"></i> 500 Coins / month</li>
+            <li class="flex items-center gap-3"><i class="fa-solid fa-shield text-gray-500"></i> Bronze Badge</li>
             <li class="flex items-center gap-3"><i class="fa-solid fa-ban text-red-400"></i> No Ads</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-user text-blue-400"></i> 1 Common Avatar</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-bolt text-neon-gold"></i> +500 XP Boost</li>
+            <li class="flex items-center gap-3"><i class="fa-solid fa-bolt text-gray-400"></i> +500 XP Boost</li>
           </ul>
-          <button onclick="buyPlan('rookie')" class="w-full border-2 border-gray-600 text-gray-300 hover:border-white hover:text-white hover:bg-white/5 py-4 rounded font-cyber font-bold tracking-widest transition">SELECT PLAN</button>
+          <button onclick="buyPlan('rookie')" class="select-btn rookie">SELECT PLAN</button>
         </div>
 
-        <!-- ELITE -->
-        <div class="plan-box p-8 rounded-xl flex flex-col items-center text-center border-t-4 border-t-neon-blue bg-white/5 transform md:-translate-y-4 relative shadow-2xl">
-          <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-neon-blue text-black text-xs font-bold px-4 py-1 rounded-full tracking-widest font-cyber shadow-[0_0_15px_rgba(0,243,255,0.5)]">MOST POPULAR</div>
-          <h3 class="font-cyber text-3xl text-neon-blue mb-2 tracking-wider">ELITE</h3>
-          <div class="text-5xl font-bold text-white mb-6 font-cyber">₹89 <span class="text-sm font-normal text-gray-500 font-sans">/mo</span></div>
-          <ul class="text-sm text-gray-300 space-y-4 mb-8 flex-1 text-left w-full pl-4 font-mono">
+        <!-- ELITE (FIXED) -->
+        <div class="plan-box elite p-8 rounded-xl text-center relative">
+          <div class="popular-badge">MOST POPULAR</div> <!-- Fixed Badge -->
+          
+          <h3 class="font-cyber text-3xl text-neon-blue mb-2 tracking-wider drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">ELITE</h3>
+          <div class="text-6xl font-bold text-white mb-6 font-cyber">₹89 <span class="text-sm font-normal text-gray-400 font-sans">/mo</span></div>
+          <ul class="text-sm text-gray-200 space-y-4 mb-8 flex-1 text-left w-full pl-4 font-mono font-bold">
             <li class="flex items-center gap-3"><i class="fa-solid fa-coins text-yellow-400"></i> 2,500 Coins / month</li>
             <li class="flex items-center gap-3"><i class="fa-solid fa-shield text-gray-300"></i> Silver Badge</li>
             <li class="flex items-center gap-3"><i class="fa-solid fa-signature text-neon-blue"></i> Cyan Name Glow</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-users text-blue-300"></i> All Common Avatars</li>
             <li class="flex items-center gap-3"><i class="fa-solid fa-rocket text-neon-gold"></i> +2,000 XP Boost</li>
           </ul>
-          <button onclick="buyPlan('elite')" class="w-full bg-neon-blue text-black hover:bg-white py-4 rounded font-cyber font-bold tracking-widest transition shadow-[0_0_25px_rgba(0,243,255,0.3)] hover:shadow-[0_0_40px_rgba(0,243,255,0.5)]">SELECT PLAN</button>
+          <button onclick="buyPlan('elite')" class="select-btn elite">SELECT PLAN</button>
         </div>
 
         <!-- LEGENDARY -->
-        <div class="plan-box legendary p-8 rounded-xl flex flex-col items-center text-center border-t-4 border-t-neon-gold">
+        <div class="plan-box legendary p-8 rounded-xl text-center">
           <h3 class="font-cyber text-2xl text-neon-gold mb-2 tracking-wider">LEGENDARY</h3>
           <div class="text-5xl font-bold text-white mb-6 font-cyber">₹149 <span class="text-sm font-normal text-gray-500 font-sans">/yr</span></div>
           <ul class="text-sm text-gray-400 space-y-4 mb-8 flex-1 text-left w-full pl-4 font-mono">
             <li class="flex items-center gap-3"><i class="fa-solid fa-gem text-purple-400"></i> 10,000 Coins / year</li>
             <li class="flex items-center gap-3"><i class="fa-solid fa-crown text-neon-gold"></i> Gold Badge & Name</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-key text-red-400"></i> Host Powers (Kick/Pass)</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-music text-green-400"></i> All Sound Packs</li>
+            <li class="flex items-center gap-3"><i class="fa-solid fa-key text-red-500"></i> Host Powers (Kick)</li>
             <li class="flex items-center gap-3"><i class="fa-solid fa-fire text-orange-500"></i> +5,000 XP Boost</li>
           </ul>
-          <button onclick="buyPlan('legendary')" class="w-full border-2 border-neon-gold text-neon-gold hover:bg-neon-gold hover:text-black py-4 rounded font-cyber font-bold tracking-widest transition shadow-[0_0_15px_rgba(255,215,0,0.1)] hover:shadow-[0_0_30px_rgba(255,215,0,0.4)]">SELECT PLAN</button>
+          <button onclick="buyPlan('legendary')" class="select-btn legendary">SELECT PLAN</button>
         </div>
 
       </div>
@@ -339,8 +373,12 @@
     const upgradeModal = document.getElementById('upgradeModal');
     const loginBtn = document.getElementById('loginBtn');
     const userInfo = document.getElementById('userInfo');
-    const db = firebase.firestore();
-
+    
+    // ERROR FIX: Do not redeclare 'db' if it exists in firebase-config.js
+    // We simply access it.
+    // If firebase-config.js did NOT export it, we would use: const db = firebase.firestore();
+    // But the error says it IS declared, so we leave this blank.
+    
     firebase.auth().onAuthStateChanged(async (user) => {
       if (user) {
         authModal.classList.add('hidden');
