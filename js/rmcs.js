@@ -2,6 +2,12 @@ document.addEventListener("DOMContentLoaded", function () {
   // ==========================================================================
   // 1. FIREBASE & STATE INITIALIZATION
   // ==========================================================================
+  // Check if Firebase is loaded
+  if (typeof firebase === 'undefined') {
+      console.error("Firebase not loaded. Check script tags.");
+      return;
+  }
+  
   const db = firebase.firestore();
   let unsubscribe = null;
   let roomId = '';
@@ -10,39 +16,47 @@ document.addEventListener("DOMContentLoaded", function () {
   let lastPhase = ''; 
 
   // ==========================================================================
-  // 2. DOM ELEMENTS
+  // 2. DOM ELEMENTS (Safe Selection)
   // ==========================================================================
-  const mainMenu = document.getElementById('mainMenu');
-  const createScreen = document.getElementById('createScreen');
-  const joinScreen = document.getElementById('joinScreen');
-  const gameScreen = document.getElementById('gameScreen');
-  const storeScreen = document.getElementById('storeScreen');
+  const getEl = (id) => document.getElementById(id);
 
-  const authModal = document.getElementById('authModal');
-  const logoutBtn = document.getElementById('logoutBtn');
-  const googleLoginBtn = document.getElementById('googleLoginBtn');
-  const guestLoginBtn = document.getElementById('guestLoginBtn');
+  const mainMenu = getEl('mainMenu');
+  const createScreen = getEl('createScreen');
+  const joinScreen = getEl('joinScreen');
+  const gameScreen = getEl('gameScreen');
+  const storeScreen = getEl('storeScreen');
 
-  const openStoreBtn = document.getElementById('openStoreBtn');
-  const userCoinsEl = document.getElementById('userCoins');
-  const exitLobbyBtn = document.getElementById('exitLobbyBtn');
+  // If we are not on the Game Page (rmcs.html), stop execution to prevent errors
+  if (!mainMenu || !gameScreen) {
+      console.log("Not on Game Page. Script paused.");
+      return;
+  }
+
+  const authModal = getEl('authModal');
+  const logoutBtn = getEl('logoutBtn');
+  const googleLoginBtn = getEl('googleLoginBtn');
+  const guestLoginBtn = getEl('guestLoginBtn');
+
+  const openStoreBtn = getEl('openStoreBtn');
+  const userCoinsEl = getEl('userCoins');
+  const exitLobbyBtn = getEl('exitLobbyBtn');
 
   // Feedback Elements
-  const feedbackModal = document.getElementById('feedbackModal');
-  const submitFeedbackBtn = document.getElementById('submitFeedbackBtn');
-  const skipFeedbackBtn = document.getElementById('skipFeedbackBtn');
-  const feedbackNameInput = document.getElementById('feedbackName');
+  const feedbackModal = getEl('feedbackModal');
+  const submitFeedbackBtn = getEl('submitFeedbackBtn');
+  const skipFeedbackBtn = getEl('skipFeedbackBtn');
+  const feedbackNameInput = getEl('feedbackName');
 
   // Game UI
-  const playersListEl = document.getElementById('playersList');
-  const currentRoomCode = document.getElementById('currentRoomCode');
+  const playersListEl = getEl('playersList');
+  const currentRoomCode = getEl('currentRoomCode');
   const gameTable = document.querySelector('.game-table');
-  const gameContent = document.getElementById('gameContent');
-  const startGameBtn = document.getElementById('startGameBtn');
-  const roundTransition = document.getElementById('roundTransition');
+  const gameContent = getEl('gameContent');
+  const startGameBtn = getEl('startGameBtn');
+  const roundTransition = getEl('roundTransition');
 
   // ==========================================================================
-  // 3. SOUND ENGINE
+  // 3. SOUND ENGINE (Error Handling Added)
   // ==========================================================================
   const SoundEffects = {
     meme: {
@@ -64,13 +78,13 @@ document.addEventListener("DOMContentLoaded", function () {
   function playSound(type) {
     const hasMemePack = currentUserData && currentUserData.inventory && currentUserData.inventory.includes('meme_pack');
     const pack = hasMemePack ? 'meme' : 'default';
-    try {
-      const audio = SoundEffects[pack][type];
-      if(audio) {
+    
+    const audio = SoundEffects[pack][type];
+    if (audio) {
         audio.currentTime = 0;
-        audio.play().catch(e => {});
-      }
-    } catch(e) {}
+        // We catch the error so 404s don't break the game logic
+        audio.play().catch(e => console.warn(`Sound '${type}' failed:`, e.message));
+    }
   }
 
   // ==========================================================================
@@ -78,12 +92,19 @@ document.addEventListener("DOMContentLoaded", function () {
   // ==========================================================================
   firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
-      authModal.classList.add('hidden');
+      // User logged in
+      if(authModal) {
+          authModal.classList.add('hidden');
+          authModal.style.display = 'none'; // Ensure display none
+      }
       if (logoutBtn) logoutBtn.classList.remove('hidden');
       await loadUserData(user.uid);
     } else {
-      authModal.classList.remove('hidden');
-      authModal.style.display = 'flex';
+      // User logged out
+      if(authModal) {
+          authModal.classList.remove('hidden');
+          authModal.style.display = 'flex';
+      }
       if (logoutBtn) logoutBtn.classList.add('hidden');
     }
   });
@@ -157,15 +178,18 @@ document.addEventListener("DOMContentLoaded", function () {
         t.classList.remove('text-white', 'border-neon-blue');
         t.classList.add('text-gray-500', 'border-transparent');
     });
-    event.target.classList.add('text-white', 'border-neon-blue');
-    event.target.classList.remove('text-gray-500', 'border-transparent');
+    if(event && event.target) {
+        event.target.classList.add('text-white', 'border-neon-blue');
+        event.target.classList.remove('text-gray-500', 'border-transparent');
+    }
     renderStore(category);
   };
 
   const storeGrid = document.getElementById('storeGrid');
   function renderStore(category) {
+    if (!storeGrid) return;
     storeGrid.innerHTML = storeItems.filter(i => i.type === category).map(item => {
-      const owned = currentUserData.inventory && currentUserData.inventory.includes(item.id);
+      const owned = currentUserData && currentUserData.inventory && currentUserData.inventory.includes(item.id);
       return `
         <div class="bg-black/60 border ${owned ? 'border-green-500' : 'border-gray-700'} p-4 rounded flex flex-col items-center text-center hover:bg-gray-900/80 transition">
           <div class="text-4xl mb-2">${item.icon}</div>
@@ -194,7 +218,9 @@ document.addEventListener("DOMContentLoaded", function () {
         t.update(userRef, { coins: data.coins - price, inventory: firebase.firestore.FieldValue.arrayUnion(itemId) });
       });
       await loadUserData(uid);
-      renderStore(storeItems.find(i => i.id === itemId).type);
+      // Refresh current view
+      const item = storeItems.find(i => i.id === itemId);
+      if(item) renderStore(item.type);
       playSound('cash');
       alert("SUCCESSFUL.");
     } catch (e) { alert("FAILED: " + e); }
@@ -214,26 +240,30 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll('.join-btn').forEach(b => b.onclick = () => showScreen(joinScreen));
   document.querySelectorAll('.back-btn').forEach(btn => btn.onclick = () => showScreen(mainMenu));
 
-  const openHistoryBtn = document.getElementById('openHistoryBtn');
-  const closeHistoryBtn = document.getElementById('closeHistoryBtn');
-  const historyModal = document.getElementById('historyModal');
-  if(openHistoryBtn) openHistoryBtn.onclick = () => { historyModal.classList.remove('hidden'); historyModal.style.display = 'flex'; };
-  if(closeHistoryBtn) closeHistoryBtn.onclick = () => { historyModal.classList.add('hidden'); historyModal.style.display = 'none'; };
+  const openHistoryBtn = getEl('openHistoryBtn');
+  const closeHistoryBtn = getEl('closeHistoryBtn');
+  const historyModal = getEl('historyModal');
+  if(openHistoryBtn) openHistoryBtn.onclick = () => { if(historyModal) { historyModal.classList.remove('hidden'); historyModal.style.display = 'flex'; }};
+  if(closeHistoryBtn) closeHistoryBtn.onclick = () => { if(historyModal) { historyModal.classList.add('hidden'); historyModal.style.display = 'none'; }};
 
-  // Exit & Feedback Logic (Restored)
+  // Exit & Feedback Logic
   if (exitLobbyBtn) {
       exitLobbyBtn.onclick = () => {
         if(unsubscribe) unsubscribe();
-        feedbackNameInput.value = playerName || "";
-        feedbackModal.classList.remove('hidden');
-        feedbackModal.style.display = 'flex';
+        if(feedbackNameInput) feedbackNameInput.value = playerName || "";
+        if(feedbackModal) {
+            feedbackModal.classList.remove('hidden');
+            feedbackModal.style.display = 'flex';
+        }
       };
   }
 
   if (submitFeedbackBtn) {
       submitFeedbackBtn.onclick = async () => {
-          const name = feedbackNameInput.value;
-          const text = document.getElementById('feedbackText').value;
+          const name = feedbackNameInput ? feedbackNameInput.value : "Anon";
+          const textEl = document.getElementById('feedbackText');
+          const text = textEl ? textEl.value : "";
+          
           const getRating = (n) => { const el = document.querySelector(`input[name="${n}"]:checked`); return el ? el.value : 0; };
           const ratings = { func: getRating('func'), gui: getRating('gui'), over: getRating('over') };
           
@@ -241,7 +271,7 @@ document.addEventListener("DOMContentLoaded", function () {
               await db.collection('rmcs_feedback').add({ name, text, ratings, time: firebase.firestore.FieldValue.serverTimestamp() });
               alert("Data Transmitted.");
               location.reload();
-          } catch(e) { alert("Error"); location.reload(); }
+          } catch(e) { alert("Error sending feedback."); location.reload(); }
       };
   }
 
@@ -252,56 +282,67 @@ document.addEventListener("DOMContentLoaded", function () {
   // ==========================================================================
   // 7. GAME ROOM LOGIC
   // ==========================================================================
-  document.getElementById('createRoomFinal').onclick = async () => {
-    playerName = document.getElementById('createPlayerName').value.trim();
-    let code = document.getElementById('createRoomCode').value.trim().toUpperCase() || Math.random().toString(36).substring(2, 6).toUpperCase();
-    if(!playerName) return alert("Name required");
-    
-    try {
-        const uid = await requireAuth();
-        const ref = db.collection('rmcs_rooms').doc(code);
-        if ((await ref.get()).exists) return alert("Code taken.");
+  const createRoomBtn = getEl('createRoomFinal');
+  if(createRoomBtn) {
+    createRoomBtn.onclick = async () => {
+      const nameInput = getEl('createPlayerName');
+      const codeInput = getEl('createRoomCode');
+      playerName = nameInput.value.trim();
+      let code = codeInput.value.trim().toUpperCase() || Math.random().toString(36).substring(2, 6).toUpperCase();
+      if(!playerName) return alert("Name required");
+      
+      try {
+          const uid = await requireAuth();
+          const ref = db.collection('rmcs_rooms').doc(code);
+          if ((await ref.get()).exists) return alert("Code taken.");
 
-        const playerData = {
-            name: playerName, id: uid, 
-            inventory: currentUserData.inventory,
-            isVip: currentUserData.inventory.includes('gold_name'),
-            nameColor: currentUserData.inventory.includes('gold_name') ? 'gold' : 'white'
-        };
+          const playerData = {
+              name: playerName, id: uid, 
+              inventory: currentUserData.inventory || [],
+              isVip: (currentUserData.inventory || []).includes('gold_name'),
+              nameColor: (currentUserData.inventory || []).includes('gold_name') ? 'gold' : 'white'
+          };
 
-        await ref.set({ 
-            host: uid, players: [playerData], phase: 'lobby', scores: {[uid]:0}, 
-            created: firebase.firestore.FieldValue.serverTimestamp() 
-        });
-        roomId = code; listenToRoom(roomId); showScreen(gameScreen);
-    } catch(e) {}
-  };
+          await ref.set({ 
+              host: uid, players: [playerData], phase: 'lobby', scores: {[uid]:0}, 
+              created: firebase.firestore.FieldValue.serverTimestamp() 
+          });
+          roomId = code; listenToRoom(roomId); showScreen(gameScreen);
+      } catch(e) { console.error(e); }
+    };
+  }
 
-  document.getElementById('joinRoomFinal').onclick = async () => {
-    playerName = document.getElementById('joinPlayerName').value.trim();
-    let code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
-    if(!playerName || !code) return alert("Info required");
+  const joinRoomBtn = getEl('joinRoomFinal');
+  if(joinRoomBtn) {
+    joinRoomBtn.onclick = async () => {
+      const nameInput = getEl('joinPlayerName');
+      const codeInput = getEl('joinRoomCode');
+      playerName = nameInput.value.trim();
+      let code = codeInput.value.trim().toUpperCase();
+      if(!playerName || !code) return alert("Info required");
 
-    try {
-        const uid = await requireAuth();
-        const ref = db.collection('rmcs_rooms').doc(code);
-        const doc = await ref.get();
-        if (!doc.exists) return alert("Room not found");
+      try {
+          const uid = await requireAuth();
+          const ref = db.collection('rmcs_rooms').doc(code);
+          const doc = await ref.get();
+          if (!doc.exists) return alert("Room not found");
 
-        const playerData = {
-            name: playerName, id: uid, 
-            inventory: currentUserData.inventory,
-            isVip: currentUserData.inventory.includes('gold_name'),
-            nameColor: currentUserData.inventory.includes('gold_name') ? 'gold' : 'white'
-        };
+          const playerData = {
+              name: playerName, id: uid, 
+              inventory: currentUserData.inventory || [],
+              isVip: (currentUserData.inventory || []).includes('gold_name'),
+              nameColor: (currentUserData.inventory || []).includes('gold_name') ? 'gold' : 'white'
+          };
 
-        if(!doc.data().players.some(p=>p.id===uid)) {
-            if(doc.data().players.length >= 4) return alert("Room Full.");
-            await ref.update({ players: firebase.firestore.FieldValue.arrayUnion(playerData), [`scores.${uid}`]: 0 });
-        }
-        roomId = code; listenToRoom(roomId); showScreen(gameScreen);
-    } catch(e) {}
-  };
+          const currentPlayers = doc.data().players || [];
+          if(!currentPlayers.some(p=>p.id===uid)) {
+              if(currentPlayers.length >= 4) return alert("Room Full.");
+              await ref.update({ players: firebase.firestore.FieldValue.arrayUnion(playerData), [`scores.${uid}`]: 0 });
+          }
+          roomId = code; listenToRoom(roomId); showScreen(gameScreen);
+      } catch(e) { console.error(e); }
+    };
+  }
 
   // ==========================================================================
   // 8. GAME LOOP
@@ -312,6 +353,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     unsubscribe = roomRef.onSnapshot(doc => {
       const data = doc.data();
+      if(!firebase.auth().currentUser) return;
       const selfId = firebase.auth().currentUser.uid;
 
       if (!data) { alert("Room deleted."); showScreen(mainMenu); roomId = ''; return; }
@@ -321,13 +363,13 @@ document.addEventListener("DOMContentLoaded", function () {
       renderPlayersList(data.players);
       renderScoreboard(data.scores || {}, data.players);
       
-      const historyContent = document.getElementById('historyContent');
+      const historyContent = getEl('historyContent');
       if(historyContent && data.history) {
           historyContent.innerHTML = data.history.map((h,i) => `<div class="border-b border-gray-700 py-2 text-xs text-gray-300">Round ${i+1}: ${h.result}</div>`).join('');
       }
 
       const isHost = selfId === data.host;
-      const cancelBtn = document.getElementById('cancelRoomBtn');
+      const cancelBtn = getEl('cancelRoomBtn');
       if(cancelBtn) { 
           cancelBtn.style.display = isHost ? 'block' : 'none'; 
           cancelBtn.onclick = () => { if(confirm("Terminate Session?")) roomRef.delete(); }; 
@@ -345,12 +387,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       lastPhase = data.phase;
 
-      const gameContent = document.getElementById('gameContent');
       const table = document.querySelector('.game-table .table');
 
       if (data.phase === "lobby") {
-        gameContent.innerHTML = '';
-        table.style.display = 'block';
+        if(gameContent) gameContent.innerHTML = '';
+        if(table) table.style.display = 'block';
         renderAvatarsTable(data.players, selfId);
 
         if(startGameBtn) {
@@ -370,7 +411,7 @@ document.addEventListener("DOMContentLoaded", function () {
       } 
       else {
         if(startGameBtn) startGameBtn.style.display = 'none';
-        table.style.display = 'block';
+        if(table) table.style.display = 'block';
         
         if (data.phase === 'reveal') showRoleRevealScreen(data, selfId, roomRef);
         else if (data.phase === 'guess') showSipahiGuessUI(data, selfId, roomRef);
@@ -392,23 +433,26 @@ document.addEventListener("DOMContentLoaded", function () {
         if (rRevealed && sRevealed) { roomRef.update({ phase: 'guess', revealed: [] }); return; }
     }
 
-    gameContent.innerHTML = `
-      <div class="flex flex-col items-center animate-fade-in">
-          <div class="text-5xl mb-2">${getRoleIcon(p.role)}</div>
-          <h3 class="font-cyber text-2xl text-neon-blue mb-4">${p.role}</h3>
-          ${(isRS && !amIRevealed) 
-            ? `<button id="revealRoleBtn" class="cyber-btn danger text-xs">EXPOSE IDENTITY</button>` 
-            : (!isRS ? `<div class="text-gray-500 text-xs border border-gray-700 px-2 py-1">STAY COVERT</div>` : `<div class="text-neon-green text-xs font-bold animate-pulse">IDENTITY EXPOSED</div>`)
-          }
-      </div>`;
-    
-    const btn = document.getElementById('revealRoleBtn');
-    if(btn) btn.onclick = () => {
-        roomRef.update({ revealed: firebase.firestore.FieldValue.arrayUnion({ id: selfId, role: p.role, name: p.name }) });
-    };
+    if(gameContent) {
+        gameContent.innerHTML = `
+          <div class="flex flex-col items-center animate-fade-in">
+              <div class="text-5xl mb-2">${getRoleIcon(p.role)}</div>
+              <h3 class="font-cyber text-2xl text-neon-blue mb-4">${p.role}</h3>
+              ${(isRS && !amIRevealed) 
+                ? `<button id="revealRoleBtn" class="cyber-btn danger text-xs">EXPOSE IDENTITY</button>` 
+                : (!isRS ? `<div class="text-gray-500 text-xs border border-gray-700 px-2 py-1">STAY COVERT</div>` : `<div class="text-neon-green text-xs font-bold animate-pulse">IDENTITY EXPOSED</div>`)
+              }
+          </div>`;
+        
+        const btn = document.getElementById('revealRoleBtn');
+        if(btn) btn.onclick = () => {
+            roomRef.update({ revealed: firebase.firestore.FieldValue.arrayUnion({ id: selfId, role: p.role, name: p.name }) });
+        };
+    }
   }
 
   function showSipahiGuessUI(data, selfId, roomRef) {
+    if(!gameContent) return;
     const p = data.playerRoles.find(p => p.id === selfId);
     if (p.role !== 'Sipahi') {
         gameContent.innerHTML = `<div class="text-center animate-fade-in"><div class="text-5xl mb-2 animate-bounce">🛡️</div><h3 class="text-neon-blue font-bold">SIPAHI IS ANALYZING...</h3></div>`;
@@ -431,6 +475,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function showRoundResult(data, selfId, roomRef, isHost) {
+    if(!gameContent) return;
     const res = data.guess;
     const isCorrect = res.correct;
     
