@@ -1,146 +1,143 @@
+// --- GLOBAL VARIABLES ---
+let db;
+let authModal, upgradeModal, loginBtn, userInfo, userNameEl, userCoinsEl;
+
 document.addEventListener("DOMContentLoaded", function() {
-    // Initialize Firestore
-    const db = firebase.firestore();
+    // Initialize Firebase Services safely
+    db = firebase.firestore();
+    
+    // Cache DOM Elements
+    authModal = document.getElementById('authModal');
+    upgradeModal = document.getElementById('upgradeModal');
+    loginBtn = document.getElementById('loginBtn');
+    userInfo = document.getElementById('userInfo');
+    userNameEl = document.getElementById('userName');
+    userCoinsEl = document.getElementById('userCoins');
 
-    // DOM Elements
-    const authModal = document.getElementById('authModal');
-    const upgradeModal = document.getElementById('upgradeModal');
-    const loginBtn = document.getElementById('loginBtn');
-    const userInfo = document.getElementById('userInfo');
-    const userNameEl = document.getElementById('userName');
-    const userCoinsEl = document.getElementById('userCoins');
-
-    // --- GLOBAL FUNCTIONS (Attached to window for HTML onclick access) ---
-
-    window.openAuthModal = function() {
-        authModal.classList.remove('hidden');
-        authModal.style.display = 'flex';
-    };
-
-    window.loginGoogle = function() {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        firebase.auth().signInWithPopup(provider).catch(error => {
-            alert("Login failed: " + error.message);
-        });
-    };
-
-    window.loginGuest = function() {
-        firebase.auth().signInAnonymously()
-            .then(() => {
-                authModal.classList.add('hidden');
-                authModal.style.display = 'none';
-            })
-            .catch(error => {
-                alert("Guest login failed: " + error.message);
-            });
-    };
-
-    window.launchGame = function(page) {
-        if (!firebase.auth().currentUser) {
-            alert("ACCESS DENIED. Identification required.");
-            window.openAuthModal();
-            return;
-        }
-        window.location.href = page;
-    };
-
-    window.openUpgradeModal = function() {
-        upgradeModal.classList.remove('hidden');
-        upgradeModal.style.display = 'flex';
-    };
-
-    window.closeUpgradeModal = function() {
-        upgradeModal.classList.add('hidden');
-        upgradeModal.style.display = 'none';
-    };
-
-    // Mock Payment Integration
-    window.buyPlan = function(plan) {
-        const user = firebase.auth().currentUser;
-        if (!user) return alert("Please login first.");
-        
-        if(confirm(`Confirm upgrade to ${plan.toUpperCase()} protocol?`)) {
-            const userRef = db.collection('users').doc(user.uid);
-            
-            // Give bonuses based on plan
-            let coinsToAdd = 0;
-            let xpToAdd = 0;
-            if(plan === 'rookie') { coinsToAdd = 500; xpToAdd = 500; }
-            if(plan === 'elite') { coinsToAdd = 2500; xpToAdd = 2000; }
-            if(plan === 'legendary') { coinsToAdd = 10000; xpToAdd = 5000; }
-
-            userRef.update({
-                plan: plan,
-                coins: firebase.firestore.FieldValue.increment(coinsToAdd),
-                xp: firebase.firestore.FieldValue.increment(xpToAdd),
-                lastPlanUpdate: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
-                alert(`UPGRADE SUCCESSFUL. Welcome to ${plan.toUpperCase()} tier.`);
-                window.closeUpgradeModal();
-                location.reload(); // Refresh to show updated coins
-            }).catch(e => alert("Transaction Failed: " + e.message));
-        }
-    };
-
-    // --- AUTH STATE LISTENER ---
+    // --- AUTH STATE LISTENER (The Watchdog) ---
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
-            // 1. UI Updates (Logged In)
-            authModal.classList.add('hidden');
-            authModal.style.display = 'none';
+            console.log("User detected:", user.uid);
+            // 1. User is Logged In
+            if(authModal) {
+                authModal.classList.add('hidden');
+                authModal.style.display = 'none'; 
+            }
             
-            loginBtn.classList.add('hidden');
-            userInfo.classList.remove('hidden');
-            userInfo.classList.add('flex');
+            if(loginBtn) loginBtn.classList.add('hidden');
+            if(userInfo) {
+                userInfo.classList.remove('hidden');
+                userInfo.classList.add('flex');
+            }
             
             // Set Name
-            userNameEl.innerText = (user.displayName || "Agent_" + user.uid.substring(0, 4)).toUpperCase();
+            if(userNameEl) userNameEl.innerText = (user.displayName || "Agent_" + user.uid.substring(0, 4)).toUpperCase();
 
-            // 2. Load/Create User Data in Firestore
+            // 2. Load User Data
             const userRef = db.collection('users').doc(user.uid);
             try {
                 let doc = await userRef.get();
-
                 if (!doc.exists) {
-                    // Create new profile if missing
                     const newProfile = {
                         username: user.displayName || "Agent_" + user.uid.substring(0, 4),
                         email: user.email || "guest",
-                        coins: 100, // Signup Bonus
-                        xp: 0, 
-                        level: 1, 
-                        plan: 'free', 
-                        inventory: [],
+                        coins: 100, xp: 0, level: 1, plan: 'free', inventory: [],
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     };
                     await userRef.set(newProfile);
                     doc = await userRef.get();
                 }
-
-                // Display Coins
                 const data = doc.data();
-                userCoinsEl.innerText = (data.coins || 0) + " CR";
+                if(userCoinsEl) userCoinsEl.innerText = (data.coins || 0) + " CR";
                 
                 // Store for game pages
                 localStorage.setItem('rmcs_uid', user.uid);
-
-            } catch (e) {
-                console.error("Error loading profile:", e);
-            }
+            } catch (e) { console.error("Profile Error:", e); }
 
         } else {
-            // 3. UI Updates (Logged Out)
-            // Show auth modal after slight delay for effect
-            setTimeout(() => {
-                if(authModal.classList.contains('hidden')) {
-                     authModal.classList.remove('hidden');
-                     authModal.style.display = 'flex';
-                }
-            }, 800);
-            
-            userInfo.classList.add('hidden');
-            userInfo.classList.remove('flex');
-            loginBtn.classList.remove('hidden');
+            console.log("No user. Forcing Login.");
+            // 3. User is Logged Out -> FORCE MODAL
+            if(authModal) {
+                authModal.classList.remove('hidden');
+                authModal.style.display = 'flex';
+            }
+            if(userInfo) {
+                userInfo.classList.add('hidden');
+                userInfo.classList.remove('flex');
+            }
+            if(loginBtn) loginBtn.classList.remove('hidden');
         }
     });
 });
+
+// --- GLOBAL FUNCTIONS (Must be outside DOMContentLoaded) ---
+
+window.openAuthModal = function() {
+    if(authModal) {
+        authModal.classList.remove('hidden');
+        authModal.style.display = 'flex';
+    }
+};
+
+window.loginGoogle = function() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithPopup(provider).catch(error => alert("Login failed: " + error.message));
+};
+
+window.loginGuest = function() {
+    firebase.auth().signInAnonymously().catch(error => alert("Guest login failed: " + error.message));
+};
+
+// LOGOUT FUNCTION (Added for you)
+window.logoutUser = function() {
+    if(confirm("Are you sure you want to log out?")) {
+        firebase.auth().signOut().then(() => {
+            location.reload();
+        });
+    }
+};
+
+window.launchGame = function(page) {
+    if (!firebase.auth().currentUser) {
+        alert("ACCESS DENIED. You must login first.");
+        window.openAuthModal();
+        return;
+    }
+    window.location.href = page;
+};
+
+window.openUpgradeModal = function() {
+    if(upgradeModal) {
+        upgradeModal.classList.remove('hidden');
+        upgradeModal.style.display = 'flex';
+    }
+};
+
+window.closeUpgradeModal = function() {
+    if(upgradeModal) {
+        upgradeModal.classList.add('hidden');
+        upgradeModal.style.display = 'none';
+    }
+};
+
+window.buyPlan = function(plan) {
+    const user = firebase.auth().currentUser;
+    if (!user) return alert("Please login first.");
+    
+    if(confirm(`Confirm upgrade to ${plan.toUpperCase()}?`)) {
+        const userRef = db.collection('users').doc(user.uid);
+        let coins = 0; 
+        if(plan === 'rookie') coins = 500;
+        if(plan === 'elite') coins = 2500;
+        if(plan === 'legendary') coins = 10000;
+
+        userRef.update({
+            plan: plan,
+            coins: firebase.firestore.FieldValue.increment(coins)
+        }).then(() => {
+            alert("Upgrade Successful!");
+            window.closeUpgradeModal();
+            location.reload();
+        });
+    }
+};
