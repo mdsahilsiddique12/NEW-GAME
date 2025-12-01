@@ -1,370 +1,214 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Nexus | Protocol 2077</title>
   <title>Game Nexus | Protocol 2448</title>
-  
-  <!-- Fonts & Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <!-- Your Config File -->
-  <script src="js/firebase-config.js"></script>
 
-  <style>
-    :root {
-      --neon-blue: #00f3ff;
-      --neon-pink: #d946ef; 
-      --neon-red: #ef4444;
-      --neon-gold: #FFD700;
-      --bg-dark: #030712;   
-      --card-surface: rgba(15, 23, 42, 0.8);
-      --card-border: rgba(255, 255, 255, 0.15);
-    }
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+<style>
+:root {
+--neon-blue: #00f3ff;
+--neon-pink: #d946ef; 
+--neon-red: #ef4444;  
+--bg-dark: #030712;   
+--card-surface: rgba(255, 255, 255, 0.03);
+--card-border: rgba(255, 255, 255, 0.1);
+}
 
-    body {
-      font-family: 'Rajdhani', sans-serif;
-      background-color: var(--bg-dark);
-      color: white;
-      overflow-x: hidden;
-      min-height: 100vh;
-      display: flex; flex-direction: column; align-items: center;
-      position: relative;
-    }
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* --- Background FX --- */
-    .background-fx {
-      position: fixed; inset: 0; z-index: -1;
-      background: 
-        radial-gradient(circle at 50% 0%, rgba(0, 243, 255, 0.1), transparent 50%),
-        radial-gradient(circle at 0% 100%, rgba(217, 70, 239, 0.05), transparent 40%),
-        var(--bg-dark);
-    }
-    .background-fx::after {
-      content: ""; position: absolute; inset: 0;
-      background-image: radial-gradient(white 1px, transparent 1px);
-      background-size: 40px 40px; opacity: 0.05;
-      mask-image: radial-gradient(circle at center, black, transparent 80%);
-    }
+body {
+font-family: 'Rajdhani', sans-serif;
+background-color: var(--bg-dark);
+color: white;
+overflow-x: hidden;
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+position: relative;
+}
 
-    /* --- Navbar --- */
-    nav {
-      width: 100%; padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center;
-      z-index: 50; background: linear-gradient(to bottom, rgba(3, 7, 18, 0.95), transparent);
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    
-    .upgrade-btn {
-      border: 2px solid var(--neon-gold); color: var(--neon-gold); padding: 10px 24px;
-      font-family: 'Orbitron', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-      background: rgba(255, 215, 0, 0.08); transition: 0.3s; cursor: pointer;
-      box-shadow: 0 0 15px rgba(255, 215, 0, 0.1); animation: pulse 2s infinite;
-      border-radius: 4px;
-    }
-    .upgrade-btn:hover { background: var(--neon-gold); color: black; box-shadow: 0 0 30px rgba(255, 215, 0, 0.6); }
+/* --- Background FX --- */
+.background-fx {
+position: fixed; inset: 0; z-index: -1;
+background: 
+radial-gradient(circle at 50% 0%, rgba(0, 243, 255, 0.15), transparent 50%),
+radial-gradient(circle at 0% 100%, rgba(217, 70, 239, 0.1), transparent 40%),
+var(--bg-dark);
+}
+.background-fx::after {
+content: ""; position: absolute; inset: 0;
+background-image: radial-gradient(white 1px, transparent 1px);
+background-size: 50px 50px; opacity: 0.1;
+mask-image: radial-gradient(circle at center, black, transparent 80%);
+}
 
-    .login-btn {
-      border: 2px solid var(--neon-blue); color: var(--neon-blue); padding: 8px 20px;
-      font-family: 'Orbitron', sans-serif; font-weight: 700; letter-spacing: 1px;
-      background: transparent; transition: 0.3s; cursor: pointer; border-radius: 4px;
-    }
-    .login-btn:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 20px var(--neon-blue); }
+/* Header */
+header { text-align: center; margin-bottom: 3rem; z-index: 10; padding: 0 1rem; }
 
-    /* --- Header --- */
-    header { text-align: center; margin: 4rem 0 3rem 0; z-index: 10; padding: 0 1rem; }
+h1 {
+font-family: 'Orbitron', sans-serif;
+font-size: 3.5rem; font-weight: 800; letter-spacing: 0.2em;
+background: linear-gradient(to bottom, #fff, #94a3b8);
+-webkit-background-clip: text; -webkit-text-fill-color: transparent;
+filter: drop-shadow(0 0 30px rgba(0, 243, 255, 0.2));
+margin-bottom: 0.5rem;
+}
 
-    h1 {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 4.5rem; font-weight: 900; letter-spacing: 0.1em;
-      background: linear-gradient(to bottom, #fff 40%, #94a3b8);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      filter: drop-shadow(0 0 40px rgba(0, 243, 255, 0.2));
-      margin-bottom: 0.5rem; text-transform: uppercase;
-    }
+.subtitle {
+font-family: 'Rajdhani', sans-serif; color: #94a3b8; letter-spacing: 0.3em;
+font-size: 1rem; font-weight: 500; text-transform: uppercase;
+display: flex; align-items: center; justify-content: center; gap: 1rem;
+}
+.subtitle::before, .subtitle::after {
+content: ""; height: 1px; width: 40px;
+background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+}
 
-    .subtitle {
-      font-family: 'Rajdhani', sans-serif; color: #94a3b8; letter-spacing: 0.4em;
-      font-size: 1rem; font-weight: 600; text-transform: uppercase;
-      display: flex; align-items: center; justify-content: center; gap: 1rem;
-    }
-    .subtitle::before, .subtitle::after {
-      content: ""; height: 1px; width: 60px;
-      background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
-    }
+/* Cards Container */
+.container {
+display: flex; flex-wrap: wrap; gap: 2rem; justify-content: center;
+padding: 2rem; z-index: 10; max-width: 1000px;
+}
 
-    /* --- Cards Container --- */
-    .container {
-      display: flex; flex-wrap: wrap; gap: 3rem; justify-content: center;
-      padding: 2rem; z-index: 10; max-width: 1200px;
-    }
+/* Card Styling */
+.card {
+position: relative; width: 320px; height: 440px;
+background: var(--card-surface);
+border: 1px solid var(--card-border);
+border-radius: 24px;
+display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+padding: 2.5rem 2rem; text-decoration: none;
+transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+backdrop-filter: blur(12px); overflow: hidden;
+}
 
-    /* --- Card Styling --- */
-    .card {
-      position: relative; width: 340px; height: 480px;
-      background: var(--card-surface);
-      border: 1px solid var(--card-border);
-      border-radius: 24px;
-      display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-      padding: 3rem 2rem; text-decoration: none; cursor: pointer;
-      transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-      backdrop-filter: blur(12px); overflow: hidden;
-      box-shadow: 0 10px 30px -5px rgba(0,0,0,0.5);
-    }
+/* Inner Border Glow */
+.card::before {
+content: ""; position: absolute; inset: 0; border-radius: 24px; padding: 1px;
+background: linear-gradient(180deg, rgba(255,255,255,0.1), transparent);
+-webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+-webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+}
 
-    /* Corner Accents */
-    .card::after {
-      content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: 
-        linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px) 0 0,
-        linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px) 0 0;
-      background-size: 20px 20px; opacity: 0.1; pointer-events: none;
-    }
+/* Hover States */
+.card.rmcs:hover { border-color: var(--neon-blue); box-shadow: 0 10px 40px -10px rgba(0, 243, 255, 0.3); }
+.card.dk:hover   { border-color: var(--neon-red);  box-shadow: 0 10px 40px -10px rgba(239, 68, 68, 0.3); }
+.card:hover { transform: translateY(-8px); background: rgba(255,255,255,0.05); }
 
-    /* Hover States */
-    .card.rmcs:hover { border-color: var(--neon-blue); box-shadow: 0 0 40px rgba(0, 243, 255, 0.15); transform: translateY(-10px); }
-    .card.dk:hover   { border-color: var(--neon-red);  box-shadow: 0 0 40px rgba(239, 68, 68, 0.15); transform: translateY(-10px); }
+/* Icon Box */
+.icon-box {
+width: 80px; height: 80px; border-radius: 50%;
+display: flex; align-items: center; justify-content: center;
+font-size: 2.5rem; margin-bottom: 1rem;
+background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+transition: 0.5s;
+}
+.rmcs .icon-box { color: var(--neon-blue); box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); }
+.dk .icon-box   { color: var(--neon-red);  box-shadow: 0 0 20px rgba(239, 68, 68, 0.1); }
+.card:hover .icon-box { transform: scale(1.1); background: rgba(255,255,255,0.1); }
 
-    /* Icon Box */
-    .icon-box {
-      width: 90px; height: 90px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 3rem; margin-bottom: 1.5rem;
-      background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
-      transition: 0.5s; z-index: 2;
-    }
-    .rmcs .icon-box { color: var(--neon-blue); box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); }
-    .dk .icon-box   { color: var(--neon-red);  box-shadow: 0 0 20px rgba(239, 68, 68, 0.1); }
-    .card:hover .icon-box { transform: scale(1.1) rotate(10deg); border-color: white; }
+/* Text & Glitch Effect */
+.card-title {
+font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 700;
+text-align: center; text-transform: uppercase; line-height: 1.3;
+margin-bottom: 0.5rem; color: white; letter-spacing: 1px;
+position: relative; display: inline-block;
+}
 
-    /* Text */
-    .card-title {
-      font-family: 'Orbitron', sans-serif; font-size: 1.8rem; font-weight: 700;
-      text-align: center; text-transform: uppercase; line-height: 1.2;
-      margin-bottom: 1rem; color: white; letter-spacing: 1px; z-index: 2;
-    }
-    .card:hover .card-title { animation: glitch 0.3s infinite; }
+/* Glitch Keyframes */
+@keyframes glitch {
+0% { transform: translate(0); }
+20% { transform: translate(-2px, 2px); }
+40% { transform: translate(-2px, -2px); }
+60% { transform: translate(2px, 2px); }
+80% { transform: translate(2px, -2px); }
+100% { transform: translate(0); }
+}
+.card:hover .card-title {
+animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+color: white;
+text-shadow: 2px 2px var(--neon-pink), -2px -2px var(--neon-blue);
+}
 
-    .card-desc {
-      text-align: center; color: #94a3b8; font-size: 1rem;
-      line-height: 1.6; font-weight: 400; margin-bottom: auto; padding: 0 10px; z-index: 2;
-    }
+.card-desc {
+text-align: center; color: #94a3b8; font-size: 0.95rem;
+line-height: 1.5; font-weight: 400; margin-bottom: auto;
+}
 
-    /* Button inside Card */
-    .play-btn {
-      margin-top: 2rem; width: 100%; padding: 1rem;
-      text-align: center; font-family: 'Orbitron', sans-serif;
-      font-weight: 700; font-size: 0.9rem; text-transform: uppercase;
-      letter-spacing: 3px; border-radius: 8px; transition: 0.3s;
-      position: relative; z-index: 2; border-width: 2px;
-    }
-    .rmcs .play-btn { border-color: var(--neon-blue); color: var(--neon-blue); }
-    .rmcs .play-btn:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 30px var(--neon-blue); }
-    .dk .play-btn { border-color: var(--neon-red); color: var(--neon-red); }
-    .dk .play-btn:hover { background: var(--neon-red); color: #fff; box-shadow: 0 0 30px var(--neon-red); }
+/* Button */
+.play-btn {
+margin-top: 2rem; width: 100%; padding: 0.8rem;
+text-align: center; font-family: 'Orbitron', sans-serif;
+font-weight: 600; font-size: 0.9rem; text-transform: uppercase;
+letter-spacing: 2px; border-radius: 12px; transition: 0.3s;
+position: relative; overflow: hidden; z-index: 1;
+}
+.rmcs .play-btn { border: 1px solid var(--neon-blue); color: var(--neon-blue); }
+.rmcs .play-btn:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 20px var(--neon-blue); }
+.dk .play-btn { border: 1px solid var(--neon-red); color: var(--neon-red); }
+.dk .play-btn:hover { background: var(--neon-red); color: #fff; box-shadow: 0 0 20px var(--neon-red); }
 
-    /* Modals */
-    .modal-overlay { background: rgba(0,0,0,0.92); backdrop-filter: blur(15px); }
-    
-    /* Plans */
-    .plan-box { 
-        background: rgba(15, 23, 42, 0.9);
-        border: 1px solid rgba(255,255,255,0.15); 
-        transition: 0.3s; position: relative; 
-        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-        display: flex; flex-direction: column;
-    }
-    .plan-box:hover { transform: translateY(-5px); background: rgba(30, 41, 59, 1); }
-    
-    .plan-box.elite {
-        background: rgba(0, 243, 255, 0.05);
-        border: 2px solid var(--neon-blue);
-        transform: scale(1.05);
-        z-index: 10;
-    }
-    .plan-box.elite:hover { transform: scale(1.08); box-shadow: 0 0 50px rgba(0, 243, 255, 0.15); }
+/* Footer */
+footer { margin-top: auto; padding: 2rem; text-align: center; font-family: 'Rajdhani', sans-serif; z-index: 10; }
+.credit-box { display: inline-flex; flex-direction: column; align-items: center; opacity: 0.7; transition: 0.3s; }
+.credit-box:hover { opacity: 1; }
+.credit-name { font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; color: #fff; }
+.credit-role { font-size: 0.7rem; color: var(--neon-blue); margin-top: 2px; }
 
-    .plan-box.legendary { border: 2px solid rgba(255, 215, 0, 0.5); }
-    .plan-box.legendary:hover { border-color: var(--neon-gold); box-shadow: 0 0 40px rgba(255, 215, 0, 0.2); }
-
-    .popular-badge {
-        position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
-        background: var(--neon-blue); color: #000;
-        font-family: 'Orbitron', sans-serif; font-weight: 800; font-size: 0.75rem;
-        padding: 6px 16px; border-radius: 20px;
-        box-shadow: 0 0 15px var(--neon-blue); letter-spacing: 1px;
-        white-space: nowrap; z-index: 20;
-    }
-
-    .select-btn {
-        width: 100%; padding: 14px; margin-top: auto;
-        font-family: 'Orbitron', sans-serif; font-weight: 700; letter-spacing: 2px;
-        border-radius: 6px; transition: 0.3s; cursor: pointer; text-transform: uppercase;
-    }
-    .select-btn.rookie { border: 2px solid #64748b; color: #94a3b8; background: transparent; }
-    .select-btn.rookie:hover { border-color: white; color: white; background: rgba(255,255,255,0.05); }
-    
-    .select-btn.elite { background: var(--neon-blue); color: #000; border: none; box-shadow: 0 0 20px rgba(0, 243, 255, 0.3); }
-    .select-btn.elite:hover { background: white; box-shadow: 0 0 30px rgba(255, 255, 255, 0.5); }
-
-    .select-btn.legendary { border: 2px solid var(--neon-gold); color: var(--neon-gold); background: transparent; }
-    .select-btn.legendary:hover { background: var(--neon-gold); color: black; box-shadow: 0 0 30px var(--neon-gold); }
-
-    .tactical-border { position: relative; overflow: hidden; }
-    .tactical-border::before, .tactical-border::after {
-        content: ''; position: absolute; width: 20px; height: 20px;
-        border: 2px solid var(--neon-blue); transition: 0.3s;
-    }
-    .tactical-border::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
-    .tactical-border::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
-
-    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); } }
-    @keyframes glitch {
-      0% { transform: translate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(-2px, -2px); } 60% { transform: translate(2px, 2px); } 80% { transform: translate(2px, -2px); } 100% { transform: translate(0); }
-    }
-
-    footer { margin-top: auto; padding: 2rem; text-align: center; font-family: 'Rajdhani', sans-serif; z-index: 10; color:#64748b; font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; }
-  </style>
+@media (max-width: 768px) {
+h1 { font-size: 2.5rem; }
+.card { width: 100%; max-width: 340px; min-height: 400px; }
+}
+</style>
 </head>
 <body>
 
-  <div class="background-fx"></div>
+<div class="background-fx"></div>
 
-  <nav>
-    <div class="text-white font-cyber font-bold text-xl tracking-widest flex items-center gap-2">
-        <div class="w-2 h-8 bg-neon-blue"></div>
-        GN <span class="text-gray-500 text-xs align-top">PRO</span>
-    </div>
-    
-    <button onclick="openUpgradeModal()" class="upgrade-btn hidden md:block rounded">
-      <i class="fa-solid fa-crown mr-2"></i> UPGRADE PRO
-    </button>
+<header>
+<h1>GAME NEXUS</h1>
+<div class="subtitle">Select Protocol</div>
+</header>
 
-    <div class="flex items-center gap-4">
-      <!-- Added onclick="logoutUser()" and cursor-pointer -->
-      <div id="userInfo" onclick="logoutUser()" class="hidden flex-col items-end border-r border-gray-700 pr-4 cursor-pointer hover:opacity-80 transition" title="Click to Logout">
-        <span id="userName" class="text-neon-blue font-bold text-sm tracking-wider">AGENT</span>
-        <span id="userCoins" class="text-yellow-400 text-xs font-mono font-bold">0 CR</span>
-      </div>
-      <button id="loginBtn" onclick="openAuthModal()" class="login-btn">LOGIN</button>
-    </div>
-  </nav>
+<div class="container">
 
-  <header>
-    <h1>GAME NEXUS</h1>
-    <div class="subtitle">Select Protocol</div>
-  </header>
+<!-- Card 1: RMCS -->
+<a href="rmcs.html" class="card rmcs">
+<div class="icon-box">👑</div>
+<div class="card-title">Raja Mantri<br>Chor Sipahi</div>
+<div class="card-desc">
+Strategic deception. Assume roles, hide your identity, and outsmart the law.
+</div>
+<div class="play-btn">Initialize</div>
+</a>
 
-  <div class="container">
-    
-    <!-- Card 1: RMCS -->
-    <div onclick="launchGame('rmcs.html')" class="card rmcs">
-      <div class="icon-box">👑</div>
-      <div class="card-title">Raja Mantri<br>Chor Sipahi</div>
-      <div class="card-desc">Strategic deception. Assume roles, hide your identity, and outsmart the law.</div>
-      <div class="play-btn">Initialize</div>
-    </div>
+<!-- Card 2: Detective Killer -->
+<a href="detective.html" class="card dk">
+<div class="icon-box">🕵️</div>
+<div class="card-title">Detective<br>Killer</div>
+<div class="card-desc">
+High-stakes investigation. Identify the killer before they eliminate everyone.
+</div>
+<div class="play-btn">Investigate</div>
+</a>
 
-    <!-- Card 2: Detective Killer -->
-    <div onclick="launchGame('detective.html')" class="card dk">
-      <div class="icon-box">🕵️</div>
-      <div class="card-title">Detective<br>Killer</div>
-      <div class="card-desc">High-stakes investigation. Identify the killer before they eliminate everyone.</div>
-      <div class="play-btn">Investigate</div>
-    </div>
+</div>
 
-  </div>
-
-  <footer>
-    Architected by Sahil &bull; Full Stack Developer
-  </footer>
-
-  <!-- AUTH MODAL -->
-  <div id="authModal" class="modal-overlay fixed inset-0 hidden z-[100] flex items-center justify-center p-4">
-    <div class="bg-[#0a0a15] border-2 border-neon-blue p-10 rounded-xl max-w-sm w-full text-center shadow-[0_0_60px_rgba(0,243,255,0.15)] tactical-border">
-      <h2 class="font-cyber text-3xl text-white mb-8 tracking-widest">IDENTIFICATION</h2>
-      
-      <button onclick="loginGoogle()" class="w-full bg-white text-black font-bold font-cyber py-4 rounded mb-4 flex items-center justify-center gap-3 hover:bg-gray-200 transition shadow-lg">
-        <i class="fa-brands fa-google text-xl"></i> ACCESS VIA GOOGLE
-      </button>
-      
-      <div class="my-6 border-t border-gray-800"></div>
-
-      <button onclick="loginGuest()" class="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-[0.2em] transition">
-        [ Continue as Guest ]
-      </button>
-    </div>
-  </div>
-
-  <!-- UPGRADE MODAL -->
-  <div id="upgradeModal" class="modal-overlay fixed inset-0 hidden z-[100] flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-[#0a0a15] border border-gray-700 p-8 rounded-2xl max-w-6xl w-full relative mt-10 mb-10 shadow-[0_0_100px_rgba(0,0,0,0.8)]">
-      <button onclick="closeUpgradeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white text-3xl leading-none transition">&times;</button>
-      
-      <div class="text-center mb-12">
-        <h2 class="font-cyber text-5xl text-white mb-2 tracking-widest">PREMIUM ACCESS</h2>
-        <div class="h-1 w-24 bg-neon-gold mx-auto rounded"></div>
-        <p class="text-gray-400 font-mono text-sm uppercase tracking-widest mt-4">Unlock Elite Status & Perks</p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
-        
-        <!-- ROOKIE -->
-        <div class="plan-box p-8 rounded-xl text-center">
-          <h3 class="font-cyber text-2xl text-gray-400 mb-2 tracking-wider">ROOKIE</h3>
-          <div class="text-5xl font-bold text-white mb-6 font-cyber">₹29 <span class="text-sm font-normal text-gray-500 font-sans">/mo</span></div>
-          <ul class="text-sm text-gray-400 space-y-4 mb-8 flex-1 text-left w-full pl-4 font-mono">
-            <li class="flex items-center gap-3"><i class="fa-solid fa-coins text-yellow-600"></i> 500 Coins / month</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-shield text-gray-500"></i> Bronze Badge</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-ban text-red-400"></i> No Ads</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-bolt text-gray-400"></i> +500 XP Boost</li>
-          </ul>
-          <button onclick="buyPlan('rookie')" class="select-btn rookie">SELECT PLAN</button>
-        </div>
-
-        <!-- ELITE -->
-        <div class="plan-box elite p-8 rounded-xl text-center relative">
-          <div class="popular-badge">MOST POPULAR</div>
-          
-          <h3 class="font-cyber text-3xl text-neon-blue mb-2 tracking-wider drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">ELITE</h3>
-          <div class="text-6xl font-bold text-white mb-6 font-cyber">₹89 <span class="text-sm font-normal text-gray-400 font-sans">/mo</span></div>
-          <ul class="text-sm text-gray-200 space-y-4 mb-8 flex-1 text-left w-full pl-4 font-mono font-bold">
-            <li class="flex items-center gap-3"><i class="fa-solid fa-coins text-yellow-400"></i> 2,500 Coins / month</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-shield text-gray-300"></i> Silver Badge</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-signature text-neon-blue"></i> Cyan Name Glow</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-rocket text-neon-gold"></i> +2,000 XP Boost</li>
-          </ul>
-          <button onclick="buyPlan('elite')" class="select-btn elite">SELECT PLAN</button>
-        </div>
-
-        <!-- LEGENDARY -->
-        <div class="plan-box legendary p-8 rounded-xl text-center">
-          <h3 class="font-cyber text-2xl text-neon-gold mb-2 tracking-wider">LEGENDARY</h3>
-          <div class="text-5xl font-bold text-white mb-6 font-cyber">₹149 <span class="text-sm font-normal text-gray-500 font-sans">/yr</span></div>
-          <ul class="text-sm text-gray-400 space-y-4 mb-8 flex-1 text-left w-full pl-4 font-mono">
-            <li class="flex items-center gap-3"><i class="fa-solid fa-gem text-purple-400"></i> 10,000 Coins / year</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-crown text-neon-gold"></i> Gold Badge & Name</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-key text-red-500"></i> Host Powers (Kick)</li>
-            <li class="flex items-center gap-3"><i class="fa-solid fa-fire text-orange-500"></i> +5,000 XP Boost</li>
-          </ul>
-          <button onclick="buyPlan('legendary')" class="select-btn legendary">SELECT PLAN</button>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- LOAD INDEX LOGIC -->
-  <script src="js/index.js"></script>
+<footer>
+<div class="credit-box">
+<span class="credit-name">Architected by Sahil</span>
+<span class="credit-role">Full Stack Developer</span>
+</div>
+</footer>
 
 </body>
 </html>
