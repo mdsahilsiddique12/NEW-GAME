@@ -1,13 +1,11 @@
 console.log("Index.js initializing...");
 
-// 1. Initialize DB Global
-const db = firebase.firestore();
-
 // ===========================================================
-// GLOBAL WINDOW FUNCTIONS (Available immediately)
+// GLOBAL WINDOW FUNCTIONS
+// (These are attached to the window so HTML buttons can see them)
 // ===========================================================
 
-// --- AUTH FUNCTIONS ---
+// --- AUTH UI FUNCTIONS ---
 window.openAuthModal = function() {
     const modal = document.getElementById('authModal');
     if(modal) {
@@ -65,6 +63,9 @@ window.buyPlan = function(plan) {
     const user = firebase.auth().currentUser;
     if (!user) return alert("Please login first.");
     
+    // Use local instance to prevent collision
+    const db = firebase.firestore();
+    
     // Define Plan Perks
     let coins = 0;
     let xp = 0;
@@ -86,7 +87,6 @@ window.buyPlan = function(plan) {
         }).then(() => {
             alert(`SUCCESS! You are now a ${plan.toUpperCase()} Agent.`);
             window.closeUpgradeModal();
-            // Force reload to update UI
             window.location.reload();
         }).catch(e => {
             alert("Transaction Failed: " + e.message);
@@ -99,6 +99,9 @@ window.buyPlan = function(plan) {
 // ===========================================================
 document.addEventListener("DOMContentLoaded", function() {
     
+    // Use local instance to prevent collision
+    const db = firebase.firestore();
+
     // --- AUTH STATE MONITOR ---
     firebase.auth().onAuthStateChanged(async (user) => {
         
