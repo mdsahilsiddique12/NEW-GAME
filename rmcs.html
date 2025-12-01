@@ -3,231 +3,626 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RMCS Protocol | Game Nexus</title>
+  <title>RMCS: Protocol 2448</title>
   
-  <!-- Fonts & Tailwind -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Firebase -->
+  <!-- Google Fonts: Futuristic & Tech -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Internal CSS: Cyberpunk / Neon Theme -->
+  <style>
+    :root {
+      --neon-blue: #00f3ff;
+      --neon-pink: #bc13fe;
+      --neon-green: #0aff0a;
+      --dark-bg: #050510;
+      --glass-panel: rgba(10, 10, 25, 0.7);
+      --grid-color: rgba(0, 243, 255, 0.1);
+    }
+
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background-color: var(--dark-bg);
+      background-image: 
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+      background-size: 40px 40px;
+      background-position: center center;
+      color: #e0e0e0;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* CRT Scanline Effect Overlay */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 2px, 3px 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Utility Classes */
+    .font-cyber { font-family: 'Orbitron', sans-serif; }
+    .text-neon-blue { color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
+    .text-neon-pink { color: var(--neon-pink); text-shadow: 0 0 10px var(--neon-pink); }
+    
+    .centered-bg {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    /* Cyber Panels */
+    .menu-screen {
+      display: none;
+      width: 100%;
+      max-width: 420px;
+      max-height: 90vh; /* Prevent it from going off-screen */
+      padding: 2.5rem;
+      background: var(--glass-panel);
+      border: 1px solid rgba(0, 243, 255, 0.3);
+      box-shadow: 0 0 20px rgba(0, 243, 255, 0.1), inset 0 0 20px rgba(0,0,0,0.8);
+      backdrop-filter: blur(10px);
+      
+      /* --- FIX STARTS HERE --- */
+      /* Removed clip-path because it was cutting off the button at the bottom */
+      /* clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); */
+      
+      border-radius: 12px; /* Nice rounded corners instead of clip-path */
+      overflow-y: auto;    /* Adds scrollbar if content is too tall */
+      /* --- FIX ENDS HERE --- */
+
+      animation: cyberFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+
+    .active-screen { display: flex; flex-direction: column; gap: 1.5rem; }
+
+    /* Cyber Inputs */
+    .input-field {
+      width: 100%;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid #333;
+      border-left: 4px solid var(--neon-blue);
+      color: white;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.2rem;
+      letter-spacing: 1px;
+      transition: all 0.3s;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+    }
+
+    /* Cyber Buttons (Glitchy & Neon) */
+    .cyber-btn {
+      position: relative;
+      background: transparent;
+      border: 2px solid var(--neon-blue);
+      color: var(--neon-blue);
+      padding: 1rem 2rem;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: 0.3s;
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+    .cyber-btn:hover {
+      background: var(--neon-blue);
+      color: black;
+      box-shadow: 0 0 30px var(--neon-blue);
+      text-shadow: none;
+    }
+    .cyber-btn.secondary {
+      border-color: var(--neon-pink);
+      color: var(--neon-pink);
+    }
+    .cyber-btn.secondary:hover {
+      background: var(--neon-pink);
+      color: white;
+      box-shadow: 0 0 30px var(--neon-pink);
+    }
+    .cyber-btn.danger {
+      border-color: #ff003c;
+      color: #ff003c;
+    }
+    .cyber-btn.danger:hover {
+      background: #ff003c;
+      color: white;
+      box-shadow: 0 0 30px #ff003c;
+    }
+
+        /* --- FIXED STAR RATING CSS --- */
+    .star-rating {
+      display: flex;
+      flex-direction: row-reverse; /* This makes the stars flow 1 to 5 visually */
+      justify-content: flex-end;
+      gap: 5px;
+    }
+    
+    .star-rating input {
+      display: none; /* Hide the actual radio buttons */
+    }
+    
+    .star-rating label {
+      font-size: 30px; 
+      cursor: pointer; 
+      color: #4b5563; /* Default Gray */
+      transition: color 0.2s ease;
+    }
+
+    /* COLOR LOGIC:
+       When you hover a star, or when a star is checked,
+       color THAT star and ALL stars that follow it in the DOM (which are visually to the left) 
+    */
+    .star-rating label:hover,
+    .star-rating label:hover ~ label,
+    .star-rating input:checked ~ label {
+      color: var(--neon-green) !important; 
+      text-shadow: 0 0 15px var(--neon-green);
+    }
+
+    /* Room Code Display */
+    .room-code-display {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px dashed var(--neon-green);
+      color: var(--neon-green);
+      font-family: 'Orbitron', monospace;
+      padding: 1rem;
+      border-radius: 4px;
+      display: flex;
+      justify-content: center;
+      text-shadow: 0 0 5px var(--neon-green);
+    }
+
+    /* 3D Holographic Table */
+    .game-table {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      margin: 2rem auto;
+      perspective: 1200px;
+    }
+    .table {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: 
+        radial-gradient(circle, transparent 20%, rgba(0, 243, 255, 0.1) 60%, rgba(0, 243, 255, 0.4) 100%);
+      border: 2px solid rgba(0, 243, 255, 0.5);
+      box-shadow: 0 0 50px rgba(0, 243, 255, 0.2), inset 0 0 30px rgba(0, 243, 255, 0.2);
+      transform: rotateX(40deg);
+      animation: hologramPulse 4s infinite ease-in-out;
+    }
+    /* Grid lines on table */
+    .table::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: 
+        repeating-linear-gradient(0deg, transparent 0, transparent 19px, rgba(0, 243, 255, 0.1) 20px),
+        repeating-linear-gradient(90deg, transparent 0, transparent 19px, rgba(0, 243, 255, 0.1) 20px);
+    }
+
+    /* Avatars (Floating Orbs) */
+    .avatar {
+      position: absolute;
+      width: 70px;
+      height: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      background: rgba(0,0,0,0.8);
+      border: 2px solid var(--neon-blue);
+      border-radius: 50%;
+      box-shadow: 0 0 15px var(--neon-blue);
+    }
+    .avatar-name {
+      margin-top: 80px; /* Push name below orb */
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: white;
+      background: var(--neon-blue);
+      color: black;
+      padding: 2px 8px;
+      border-radius: 2px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      position: absolute;
+    }
+
+    /* Dynamic Game Content Overlay */
+    /* Dynamic Game Content Overlay */
+    #gameContent {
+      position: absolute;
+      /* Expand to cover the entire container, not just the table */
+      top: -60px; left: -20px; right: -20px; bottom: -110px; 
+      min-height: 450px; /* Force minimum height */
+      display: none; 
+      flex-direction: column;
+      justify-content: center; /* Center content */
+      align-items: center;
+      z-index: 100; /* Higher than avatars */
+      
+      background: rgba(5, 5, 16, 0.98); /* Darker background for readability */
+      border: 1px solid var(--neon-pink);
+      box-shadow: 0 0 50px rgba(188, 19, 254, 0.3);
+      backdrop-filter: blur(15px);
+      
+      /* CRITICAL FIX: Remove clip-path so button isn't cut off */
+      /* clip-path: polygon(...)  <-- REMOVE THIS */
+      border-radius: 16px; 
+      
+      /* Add scrolling if content gets too tall */
+      overflow-y: auto; 
+      padding: 1rem;
+    }
+
+
+    /* Animations */
+    @keyframes cyberFadeIn {
+      from { opacity: 0; transform: scale(0.95) translateY(10px); filter: blur(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+    }
+    @keyframes hologramPulse {
+      0%, 100% { box-shadow: 0 0 30px rgba(0, 243, 255, 0.2), inset 0 0 20px rgba(0, 243, 255, 0.2); opacity: 0.8; }
+      50% { box-shadow: 0 0 60px rgba(0, 243, 255, 0.4), inset 0 0 40px rgba(0, 243, 255, 0.4); opacity: 1; }
+    }
+
+    /* Message Box */
+    #messageBox {
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(5px);
+    }
+    #messageBoxContent {
+      background: #111;
+      border: 2px solid var(--neon-blue);
+      box-shadow: 0 0 40px var(--neon-blue);
+      color: white;
+    }
+
+    /* Scoreboard */
+    #scoreboard {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid #333;
+      border-left: 2px solid var(--neon-green);
+    }
+    #scoreList .flex {
+      border-bottom-color: #222;
+    }
+    @keyframes loadingBar {
+      0% { width: 0%; margin-left: 0; }
+      50% { width: 100%; margin-left: 0; }
+      100% { width: 0%; margin-left: 100%; }
+    }
+    /* --- Footer Credit Styling --- */
+    footer {
+      position: fixed; /* Fixes it to the bottom */
+      bottom: 10px;
+      width: 100%;
+      text-align: center;
+      font-family: 'Rajdhani', sans-serif;
+      z-index: 50;
+      pointer-events: none; /* Lets you click through it if needed */
+    }
+    .credit-box {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      opacity: 0.5; /* Subtle by default */
+      transition: 0.3s;
+      background: rgba(0,0,0,0.6); /* Dark background for readability */
+      padding: 4px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      pointer-events: auto; /* Makes the footer itself hoverable */
+    }
+    .credit-box:hover { opacity: 1; border-color: var(--neon-blue); }
+    
+    .credit-name {
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    .credit-role {
+      font-size: 0.6rem;
+      color: var(--neon-blue);
+      margin-top: 1px;
+    }
+
+  
+
+  </style>
+
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script> 
   <script src="js/firebase-config.js"></script>
-
-  <style>
-    /* --- CYBERPUNK THEME --- */
-    :root {
-      --neon-blue: #00f3ff;
-      --neon-green: #00ff9d;
-      --neon-pink: #d946ef; 
-      --bg-dark: #050b14;
-    }
-
-    * { box-sizing: border-box; user-select: none; }
-    body {
-      font-family: 'Rajdhani', sans-serif;
-      background-color: var(--bg-dark);
-      color: white;
-      min-height: 100vh;
-      display: flex; flex-direction: column;
-      overflow-x: hidden;
-    }
-
-    /* Background Grid */
-    .cyber-grid {
-      position: fixed; inset: 0; z-index: -1;
-      background-image: 
-        linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-      mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
-    }
-
-    /* Cyber Buttons */
-    .cyber-btn {
-      font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 2px;
-      background: rgba(0, 243, 255, 0.1); border: 1px solid var(--neon-blue);
-      color: var(--neon-blue); padding: 12px 24px; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-      transition: 0.3s; cursor: pointer; position: relative; overflow: hidden;
-    }
-    .cyber-btn:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 20px var(--neon-blue); }
-    
-    .cyber-btn.danger { border-color: var(--neon-pink); color: var(--neon-pink); background: rgba(217, 70, 239, 0.1); }
-    .cyber-btn.danger:hover { background: var(--neon-pink); color: white; box-shadow: 0 0 20px var(--neon-pink); }
-
-    /* Inputs */
-    .cyber-input {
-      background: rgba(0,0,0,0.5); border: 1px solid #334155; color: white;
-      font-family: 'Orbitron', sans-serif; padding: 12px; width: 100%;
-      outline: none; transition: 0.3s; text-align: center; letter-spacing: 2px;
-    }
-    .cyber-input:focus { border-color: var(--neon-blue); box-shadow: 0 0 15px rgba(0, 243, 255, 0.2); }
-
-    /* Game Table */
-    .game-table {
-      position: relative; width: 320px; height: 320px; margin: 2rem auto;
-      border-radius: 50%; border: 2px dashed rgba(255,255,255,0.1);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .game-content {
-      position: absolute; width: 200px; height: 200px;
-      display: flex; align-items: center; justify-content: center;
-      text-align: center; z-index: 10;
-    }
-
-    /* Avatars */
-    .avatar {
-      position: absolute; width: 70px; height: 70px;
-      background: #0f172a; border: 2px solid var(--neon-blue);
-      border-radius: 50%; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; 
-      box-shadow: 0 0 15px rgba(0,0,0,0.5); transition: 0.3s;
-    }
-    .avatar-name {
-      position: absolute; bottom: -20px; width: 120px; text-align: center;
-      font-size: 0.75rem; font-weight: bold; color: var(--neon-blue);
-      text-shadow: 0 0 5px black;
-    }
-
-    /* Modals */
-    .modal-overlay { background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); z-index: 100; }
-    .active-screen { animation: fadeIn 0.4s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  </style>
+  <script src="js/rmcs.js?v=2"></script>
 </head>
 <body>
 
-  <div class="cyber-grid"></div>
-
-  <!-- NAVIGATION -->
-  <nav class="flex justify-between items-center p-4 border-b border-white/10 bg-black/40 backdrop-blur-md z-50">
-    <div class="flex items-center gap-3">
-      <a href="index.html" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-arrow-left"></i> HUB</a>
-      <span class="h-4 w-[1px] bg-gray-600"></span>
-      <span class="font-cyber text-neon-blue tracking-widest font-bold">RMCS PROTOCOL</span>
-    </div>
-    <div class="flex items-center gap-4">
-        <button id="logoutBtn" class="hidden text-red-400 text-xs border border-red-900 px-2 py-1 rounded hover:bg-red-900/20">SIGNOUT</button>
-        <button id="openStoreBtn" class="text-yellow-400 hover:text-white transition text-sm">
-            <i class="fa-solid fa-shop mr-1"></i> STORE
-        </button>
-        <div id="userCoins" class="text-xs font-mono border border-yellow-500/30 px-2 py-1 rounded text-yellow-400">0 CR</div>
-    </div>
-  </nav>
-
-  <!-- MAIN CONTAINER -->
-  <main class="flex-1 flex items-center justify-center p-4 relative">
+  <div class="centered-bg">
     
-    <!-- 1. MAIN MENU SCREEN -->
-    <div id="mainMenu" class="active-screen w-full max-w-md text-center space-y-6">
-      <h1 class="text-5xl font-cyber font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 mb-8 drop-shadow-[0_0_15px_rgba(0,243,255,0.3)]">
-        RAJA MANTRI
+    <!-- Logo / Title -->
+    <div class="logo-block">
+      <h1 class="font-cyber text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 drop-shadow-[0_0_10px_rgba(0,243,255,0.5)]">
+        RMCS
       </h1>
+      <p class="text-neon-blue tracking-[0.5em] text-sm font-bold mt-2 uppercase">Protocol: 2448</p>
+        <!-- Home Button -->
+      <a href="index.html" class="absolute top-4 left-4 flex items-center gap-2 text-gray-400 hover:text-neon-blue transition group no-underline">
+        <span class="text-xl group-hover:-translate-x-1 transition-transform">«</span>
+        <span class="font-cyber text-xs tracking-widest uppercase border border-transparent group-hover:border-neon-blue px-2 py-1 rounded group-hover:bg-neon-blue/10">Home Base</span>
+      </a>
+
+    </div>
+
+    <div id="screens" class="w-full flex justify-center px-4">
       
-      <button class="create-btn cyber-btn w-full text-lg font-bold"><i class="fa-solid fa-plus mr-2"></i> CREATE LOBBY</button>
-      <button class="join-btn cyber-btn w-full text-lg font-bold border-gray-500 text-gray-300"><i class="fa-solid fa-right-to-bracket mr-2"></i> JOIN LOBBY</button>
-      <button id="openHistoryBtn" class="text-sm text-gray-500 hover:text-neon-blue tracking-widest mt-8 underline decoration-dotted">VIEW MISSION LOGS</button>
-    </div>
-
-    <!-- 2. CREATE SCREEN -->
-    <div id="createScreen" class="hidden w-full max-w-sm bg-black/60 border border-gray-700 p-8 rounded-xl backdrop-blur-md">
-      <h2 class="font-cyber text-2xl text-white mb-6 text-center">INITIATE LOBBY</h2>
-      <input type="text" id="createPlayerName" placeholder="CODENAME" class="cyber-input mb-4">
-      <input type="text" id="createRoomCode" placeholder="ROOM CODE (OPTIONAL)" class="cyber-input mb-6 uppercase" maxlength="6">
-      <button id="createRoomFinal" class="cyber-btn w-full mb-3">INITIALIZE</button>
-      <button class="back-btn text-gray-500 text-xs w-full hover:text-white">ABORT</button>
-    </div>
-
-    <!-- 3. JOIN SCREEN -->
-    <div id="joinScreen" class="hidden w-full max-w-sm bg-black/60 border border-gray-700 p-8 rounded-xl backdrop-blur-md">
-      <h2 class="font-cyber text-2xl text-white mb-6 text-center">JOIN FREQUENCY</h2>
-      <input type="text" id="joinPlayerName" placeholder="CODENAME" class="cyber-input mb-4">
-      <input type="text" id="joinRoomCode" placeholder="ENTER ROOM CODE" class="cyber-input mb-6 uppercase" maxlength="6">
-      <button id="joinRoomFinal" class="cyber-btn w-full mb-3">CONNECT</button>
-      <button class="back-btn text-gray-500 text-xs w-full hover:text-white">ABORT</button>
-    </div>
-
-    <!-- 4. GAME SCREEN -->
-    <div id="gameScreen" class="hidden w-full max-w-5xl flex-col md:flex-row gap-6 items-start h-[80vh]">
-      <div class="flex-1 w-full h-full bg-black/40 border border-white/5 rounded-2xl relative flex flex-col items-center justify-center overflow-hidden">
-        <div class="absolute top-4 left-4 z-20"><div id="currentRoomCode" class="text-neon-green font-mono text-xl font-bold"></div></div>
-        <div class="absolute top-4 right-4 z-20"><button id="cancelRoomBtn" class="text-red-500 hover:text-red-400 text-xs border border-red-500/30 px-3 py-1 rounded bg-red-900/10">END SESSION</button></div>
-
-        <div class="game-table">
-          <div class="table absolute inset-0 rounded-full border border-dashed border-white/10 animate-[spin_60s_linear_infinite]"></div>
-          <div id="gameContent" class="game-content"></div>
-        </div>
-
-        <div id="roundTransition" class="hidden absolute inset-0 bg-black z-50 flex-col items-center justify-center">
-            <h2 id="roundTitle" class="text-6xl font-cyber text-neon-blue animate-bounce">ROUND 1</h2>
-        </div>
-        <button id="startGameBtn" class="cyber-btn absolute bottom-10 z-20 shadow-lg">INITIATE SEQUENCE</button>
+      <!-- 1. Main Menu -->
+      <div id="mainMenu" class="menu-screen active-screen">
+        <button class="cyber-btn w-full create-btn">Initialize Room</button>
+        <button class="cyber-btn w-full secondary join-btn">Join Network</button>
+        <!-- NEW BUTTON -->
+        <button id="openStoreBtn" class="cyber-btn w-full" style="border-color: #FFD700; color: #FFD700;">Access Store</button>
       </div>
 
-      <div class="w-full md:w-80 bg-black/60 border border-white/10 h-full rounded-xl p-4 flex flex-col backdrop-blur-md">
-        <div class="flex border-b border-gray-700 mb-4">
-            <div class="flex-1 text-center pb-2 border-b-2 border-neon-blue text-white text-xs font-bold tracking-widest">AGENTS</div>
-            <div class="flex-1 text-center pb-2 text-gray-500 text-xs font-bold tracking-widest">SCORE</div>
+      <!-- 2. Create Room -->
+      <div id="createScreen" class="menu-screen">
+        <h2 class="font-cyber text-2xl text-neon-blue mb-4 uppercase border-b border-gray-800 pb-2">System Setup</h2>
+        <input type="text" id="createPlayerName" class="input-field mb-4" placeholder="ENTER AGENT ALIAS">
+        <input type="text" id="createRoomCode" class="input-field uppercase" maxlength="8" placeholder="SECURE CODE (OPTIONAL)">
+        <div id="createRoomError" class="text-red-500 text-sm mt-2 font-bold"></div>
+        <div class="mt-8 flex flex-col gap-3">
+          <button id="createRoomFinal" class="cyber-btn">Deploy</button>
+          <button class="cyber-btn danger back-btn">Abort</button>
         </div>
-        <div id="playersList" class="space-y-2 mb-6"></div>
-        <div class="flex-1 overflow-y-auto"><h3 class="text-[10px] text-gray-500 uppercase mb-2 font-bold">Live Data</h3><div id="scoreList" class="space-y-1"></div></div>
-        <button id="exitLobbyBtn" class="mt-auto w-full py-3 text-xs text-red-400 hover:text-white border border-red-900/50 hover:bg-red-900/20 rounded transition">DISCONNECT</button>
       </div>
-    </div>
 
-    <!-- 5. STORE SCREEN -->
-    <div id="storeScreen" class="hidden w-full max-w-4xl h-[80vh] bg-[#0a0a15] border border-neon-blue/30 rounded-2xl p-6 flex-col relative shadow-[0_0_50px_rgba(0,0,0,0.8)]">
-        <button class="back-btn absolute top-6 right-6 text-gray-400 hover:text-white text-2xl">&times;</button>
-        <h2 class="font-cyber text-3xl text-white mb-6 flex items-center gap-3"><i class="fa-solid fa-cart-shopping text-neon-blue"></i> BLACK MARKET</h2>
-        <div class="flex gap-4 mb-6 border-b border-gray-800">
-            <button onclick="filterStore('avatars')" class="store-tab pb-2 px-4 text-white border-b-2 border-neon-blue font-bold text-sm hover:text-neon-blue transition">AVATARS</button>
-            <button onclick="filterStore('colors')" class="store-tab pb-2 px-4 text-gray-500 border-b-2 border-transparent font-bold text-sm hover:text-neon-blue transition">COLORS</button>
-            <button onclick="filterStore('sounds')" class="store-tab pb-2 px-4 text-gray-500 border-b-2 border-transparent font-bold text-sm hover:text-neon-blue transition">AUDIO</button>
+      <!-- 3. Join Room -->
+      <div id="joinScreen" class="menu-screen">
+        <h2 class="font-cyber text-2xl text-neon-pink mb-4 uppercase border-b border-gray-800 pb-2">Access Terminal</h2>
+        <input type="text" id="joinPlayerName" class="input-field mb-4" placeholder="ENTER AGENT ALIAS">
+        <input type="text" id="joinRoomCode" class="input-field uppercase" maxlength="8" placeholder="ACCESS CODE">
+        <div id="joinRoomError" class="text-red-500 text-sm mt-2 font-bold"></div>
+        <div class="mt-8 flex flex-col gap-3">
+          <button id="joinRoomFinal" class="cyber-btn secondary">Connect</button>
+          <button class="cyber-btn danger back-btn">Abort</button>
         </div>
-        <div id="storeGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 overflow-y-auto p-2"></div>
+      </div>
+      <!-- 5. Store Screen -->
+      <div id="storeScreen" class="menu-screen" style="max-width: 800px;">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 border-b border-gray-800 pb-3">
+           <h2 class="font-cyber text-2xl text-neon-blue uppercase">Black Market</h2>
+           <div class="flex items-center gap-2 bg-black/50 px-3 py-1 rounded border border-yellow-500/30">
+             <span class="text-yellow-400 text-xl">💰</span>
+             <span id="userCoins" class="font-mono text-white text-lg font-bold">0</span>
+           </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-4 mb-6 overflow-x-auto">
+          <button class="store-tab active-tab text-sm font-bold uppercase tracking-widest text-white border-b-2 border-neon-blue pb-1" onclick="filterStore('avatars')">Avatars</button>
+          <button class="store-tab text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-white border-b-2 border-transparent hover:border-gray-500 pb-1" onclick="filterStore('colors')">Name Colors</button>
+          <button class="store-tab text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-white border-b-2 border-transparent hover:border-gray-500 pb-1" onclick="filterStore('sounds')">Sound Packs</button>
+        </div>
+
+        <!-- Items Grid -->
+        <div id="storeGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+           <!-- Items injected by JS -->
+        </div>
+
+        <div class="mt-6">
+          <button class="cyber-btn danger back-btn w-full">Return to Base</button>
+        </div>
+      </div>
+
+      <!-- 4. Game Screen (Lobby & Play) -->
+      <div id="gameScreen" class="menu-screen" style="max-width: 900px;">
+        
+        <!-- Header Bar -->
+        <div class="flex justify-between items-center mb-4 border-b border-gray-800 pb-3">
+           <div class="flex items-center gap-3">
+             <div class="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_10px_#0f0] animate-pulse"></div>
+             <h2 class="font-cyber text-xl text-white tracking-widest">LIVE FEED</h2>
+           </div>
+           <button id="exitLobbyBtn" class="text-red-500 font-bold text-xs hover:text-red-400 tracking-widest border border-red-900 px-3 py-1 rounded hover:bg-red-900/30 transition">DISCONNECT</button>
+        </div>
+
+        <!-- Room Code Bar -->
+        <div class="flex justify-center mb-6">
+           <div id="currentRoomCode" class="room-code-display w-full max-w-md"></div>
+        </div>
+
+        <!-- Main Layout: Scoreboard + Table -->
+        <div class="flex flex-col lg:flex-row gap-8 items-start">
+          
+          <!-- Scoreboard (Cyber Panel) -->
+          <div id="scoreboard" class="w-full lg:w-64 p-4 rounded-lg shadow-lg order-2 lg:order-1">
+            <h3 class="font-cyber text-neon-green text-sm mb-3 tracking-widest border-b border-gray-800 pb-2">LEADERBOARD</h3>
+            <div id="scoreList" class="space-y-2 text-sm font-mono text-gray-400 max-h-48 overflow-y-auto custom-scrollbar">
+              <div class="text-center italic opacity-50">Scanning for data...</div>
+            </div>
+
+            <!-- New Button Added Here -->
+            <button id="openHistoryBtn" class="w-full mt-4 text-xs font-cyber text-neon-blue border border-neon-blue px-3 py-2 rounded hover:bg-neon-blue hover:text-black transition uppercase tracking-widest">
+              VIEW MISSION LOG
+            </button>
+          </div>
+          <!-- Central Hologram Table -->
+          <div class="flex-1 w-full relative order-1 lg:order-2 flex flex-col items-center">
+            
+            <div class="game-table">
+              <div class="table"></div>
+              <!-- Game Dynamic Content (Results, Role Reveal, Guesses) -->
+              <div id="gameContent" class="p-6 text-center"></div> 
+            </div>
+
+            <!-- Host Controls -->
+            <div class="mt-8 w-full max-w-xs z-20 flex flex-col gap-3">
+               <button id="startGameBtn" class="cyber-btn w-full shadow-[0_0_20px_rgba(0,243,255,0.3)]">
+                 INITIATE SEQUENCE
+               </button>
+               <button id="cancelRoomBtn" class="text-xs text-red-600 hover:text-red-400 tracking-widest uppercase font-bold py-2 hidden mt-14">
+                 [ TERMINATE SESSION ]
+               </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Connected Agents -->
+        <div class="mt-6 border-t border-gray-800 pt-4">
+          <h3 class="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Connected Operatives</h3>
+          <div id="playersList" class="flex flex-wrap gap-3"></div>
+        </div>
+
+      </div>
+
     </div>
-
-  </main>
-
-  <!-- AUTH MODAL (ADDED) -->
-  <div id="authModal" class="modal-overlay fixed inset-0 hidden flex items-center justify-center p-4">
-    <div class="bg-[#0a0a15] border-2 border-neon-blue p-10 rounded-xl max-w-sm w-full text-center shadow-[0_0_60px_rgba(0,243,255,0.15)]">
-      <h2 class="font-cyber text-3xl text-white mb-8 tracking-widest">IDENTIFICATION</h2>
+  </div>
+  <!-- History Modal -->
+  <div id="historyModal" class="fixed inset-0 hidden z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm">
+    <div class="bg-[#0a0a15] border border-neon-blue w-full max-w-3xl max-h-[80vh] rounded-xl flex flex-col shadow-[0_0_40px_rgba(0,243,255,0.2)] relative">
       
-      <button id="googleLoginBtn" class="w-full bg-white text-black font-bold font-cyber py-4 rounded mb-4 flex items-center justify-center gap-3 hover:bg-gray-200 transition shadow-lg">
-        <i class="fa-brands fa-google text-xl"></i> ACCESS VIA GOOGLE
-      </button>
+      <!-- Header -->
+      <div class="flex justify-between items-center p-4 border-b border-gray-800">
+        <h3 class="font-cyber text-xl text-white tracking-widest">MISSION LOG ARCHIVE</h3>
+        <button id="closeHistoryBtn" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+      </div>
       
-      <div class="my-6 border-t border-gray-800"></div>
+      <!-- Content -->
+      <div id="historyContent" class="p-4 overflow-y-auto custom-scrollbar flex-1">
+        <!-- Table injected by JS -->
+      </div>
 
-      <button id="guestLoginBtn" class="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-[0.2em] transition">
-        [ Continue as Guest ]
-      </button>
     </div>
   </div>
 
-  <!-- HISTORY MODAL -->
-  <div id="historyModal" class="fixed inset-0 bg-black/90 z-[60] hidden items-center justify-center p-4">
-    <div class="bg-[#0f172a] border border-gray-600 w-full max-w-2xl rounded-lg p-6 max-h-[80vh] flex flex-col">
-        <div class="flex justify-between items-center mb-4"><h2 class="font-cyber text-xl text-white">MISSION LOGS</h2><button id="closeHistoryBtn" class="text-gray-400 hover:text-white">&times;</button></div>
-        <div id="historyContent" class="overflow-y-auto flex-1"></div>
+  <!-- Custom Message Modal -->
+  <div id="messageBox" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div id="messageBoxContent" class="p-8 max-w-sm w-full text-center relative overflow-hidden">
+      <h3 id="messageBoxTitle" class="font-cyber text-2xl text-neon-blue mb-4">ALERT</h3>
+      <p id="messageBoxBody" class="text-gray-300 mb-8 font-mono text-sm leading-relaxed">System notification.</p>
+      <button id="messageBoxClose" class="cyber-btn w-full">ACKNOWLEDGE</button>
     </div>
   </div>
 
+    <!-- Round Transition Overlay -->
+  <div id="roundTransition" class="fixed inset-0 z-[999] hidden flex-col items-center justify-center bg-black pointer-events-none">
+    <div class="text-neon-blue font-cyber text-6xl md:text-8xl font-black tracking-[0.2em] drop-shadow-[0_0_30px_rgba(0,243,255,0.8)] animate-pulse" id="roundTitle">
+      ROUND 1
+    </div>
+    <div class="mt-4 h-1 w-64 bg-gray-800 rounded overflow-hidden">
+       <div class="h-full bg-neon-green animate-[loadingBar_2s_ease-in-out_infinite]"></div>
+    </div>
+  </div>
   <!-- FEEDBACK MODAL -->
-  <div id="feedbackModal" class="fixed inset-0 bg-black/95 z-[70] hidden items-center justify-center p-4 backdrop-blur-sm">
-    <div class="bg-gray-900 border border-neon-blue w-full max-w-md rounded-xl p-8 text-center relative">
-        <h2 class="font-cyber text-2xl text-neon-blue mb-2">DEBRIEFING</h2>
-        <input type="text" id="feedbackName" class="cyber-input mb-6 text-left" readonly>
-        <textarea id="feedbackText" placeholder="Additional Intel (Optional)" class="w-full bg-black border border-gray-700 text-white p-3 rounded mb-4 text-sm h-20"></textarea>
-        <button id="submitFeedbackBtn" class="cyber-btn w-full mb-2">TRANSMIT DATA</button>
-        <button id="skipFeedbackBtn" class="text-gray-500 text-xs hover:text-white">SKIP DEBRIEF</button>
+  <div id="feedbackModal" class="fixed inset-0 hidden z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4">
+    <div class="bg-[#0a0a15] border-2 border-neon-pink w-full max-w-md rounded-xl flex flex-col shadow-[0_0_50px_rgba(188,19,254,0.3)] relative animate-[cyberFadeIn_0.4s_ease-out]">
+      
+      <div class="p-6 border-b border-gray-800">
+        <h3 class="font-cyber text-2xl text-white tracking-widest text-center">MISSION DEBRIEF</h3>
+        <p class="text-center text-gray-400 text-xs mt-1 font-mono">PROTOCOL 2448: FEEDBACK REQUIRED</p>
+      </div>
+
+      <div class="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
+        
+        <!-- Name Field -->
+        <div>
+          <label class="block text-neon-blue text-xs font-bold mb-2 tracking-widest">OPERATIVE NAME</label>
+          <input type="text" id="feedbackName" class="w-full bg-black/50 border border-gray-700 text-white p-2 rounded focus:border-neon-pink focus:outline-none font-mono" placeholder="Identify Yourself">
+        </div>
+
+        <!-- Rating 1: Game Functionality -->
+        <div>
+          <label class="block text-gray-400 text-xs font-bold mb-1 tracking-widest">SYSTEM FUNCTIONALITY</label>
+          <div class="star-rating" id="ratingFunc">
+            <!-- Note: Order is 5 down to 1 for CSS logic -->
+            <input type="radio" name="func" id="func-5" value="5"><label for="func-5">★</label>
+            <input type="radio" name="func" id="func-4" value="4"><label for="func-4">★</label>
+            <input type="radio" name="func" id="func-3" value="3"><label for="func-3">★</label>
+            <input type="radio" name="func" id="func-2" value="2"><label for="func-2">★</label>
+            <input type="radio" name="func" id="func-1" value="1"><label for="func-1">★</label>
+          </div>
+        </div>
+
+        <!-- Rating 2: Overall Game -->
+        <div>
+          <label class="block text-gray-400 text-xs font-bold mb-1 tracking-widest">OVERALL EXPERIENCE</label>
+          <div class="star-rating" id="ratingOverall">
+            <input type="radio" name="over" id="over-5" value="5"><label for="over-5">★</label>
+            <input type="radio" name="over" id="over-4" value="4"><label for="over-4">★</label>
+            <input type="radio" name="over" id="over-3" value="3"><label for="over-3">★</label>
+            <input type="radio" name="over" id="over-2" value="2"><label for="over-2">★</label>
+            <input type="radio" name="over" id="over-1" value="1"><label for="over-1">★</label>
+          </div>
+        </div>
+
+        <!-- Rating 3: GUI -->
+        <div>
+          <label class="block text-gray-400 text-xs font-bold mb-1 tracking-widest">VISUAL INTERFACE (GUI)</label>
+          <div class="star-rating" id="ratingGui">
+            <input type="radio" name="gui" id="gui-5" value="5"><label for="gui-5">★</label>
+            <input type="radio" name="gui" id="gui-4" value="4"><label for="gui-4">★</label>
+            <input type="radio" name="gui" id="gui-3" value="3"><label for="gui-3">★</label>
+            <input type="radio" name="gui" id="gui-2" value="2"><label for="gui-2">★</label>
+            <input type="radio" name="gui" id="gui-1" value="1"><label for="gui-1">★</label>
+          </div>
+        </div>
+
+        <!-- Suggestion Box -->
+        <div>
+          <label class="block text-neon-blue text-xs font-bold mb-2 tracking-widest">TACTICAL SUGGESTIONS</label>
+          <textarea id="feedbackText" rows="3" class="w-full bg-black/50 border border-gray-700 text-white p-2 rounded focus:border-neon-pink focus:outline-none font-mono text-sm" placeholder="Enter feedback parameters..."></textarea>
+        </div>
+
+      </div>
+
+      <div class="p-6 border-t border-gray-800 flex gap-3">
+        <button id="submitFeedbackBtn" class="cyber-btn w-full secondary text-sm py-3">TRANSMIT DATA</button>
+        <button id="skipFeedbackBtn" class="text-gray-500 hover:text-white text-xs font-bold px-4">SKIP</button>
+      </div>
+
     </div>
   </div>
+  
+  <!-- Footer Credit -->
+  <footer>
+    <div class="credit-box">
+      <span class="credit-name">Architected by Sahil</span>
+      <span class="credit-role">Full Stack Developer</span>
+    </div>
+  </footer>
 
-  <script src="js/rmcs.js"></script>
 
 </body>
 </html>
