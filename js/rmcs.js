@@ -1,233 +1,555 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RMCS Protocol | Game Nexus</title>
-  
-  <!-- Fonts & Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="js/firebase-config.js"></script>
+document.addEventListener("DOMContentLoaded", function () {
+  // ==========================================================================
+  // 1. FIREBASE & STATE INITIALIZATION
+  // ==========================================================================
+  const db = firebase.firestore();
+  let unsubscribe = null;
+  let roomId = '';
+  let playerName = '';
+  let currentUserData = null;
+  let lastPhase = ''; 
 
-  <style>
-    /* --- CYBERPUNK THEME --- */
-    :root {
-      --neon-blue: #00f3ff;
-      --neon-green: #00ff9d;
-      --neon-pink: #d946ef; 
-      --bg-dark: #050b14;
-    }
+  // ==========================================================================
+  // 2. DOM ELEMENTS
+  // ==========================================================================
+  const mainMenu = document.getElementById('mainMenu');
+  const createScreen = document.getElementById('createScreen');
+  const joinScreen = document.getElementById('joinScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const storeScreen = document.getElementById('storeScreen');
 
-    * { box-sizing: border-box; user-select: none; }
-    body {
-      font-family: 'Rajdhani', sans-serif;
-      background-color: var(--bg-dark);
-      color: white;
-      min-height: 100vh;
-      display: flex; flex-direction: column;
-      overflow-x: hidden;
-    }
+  const authModal = document.getElementById('authModal');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const googleLoginBtn = document.getElementById('googleLoginBtn');
+  const guestLoginBtn = document.getElementById('guestLoginBtn');
 
-    /* Background Grid */
-    .cyber-grid {
-      position: fixed; inset: 0; z-index: -1;
-      background-image: 
-        linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-      mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
-    }
+  const openStoreBtn = document.getElementById('openStoreBtn');
+  const userCoinsEl = document.getElementById('userCoins');
+  const exitLobbyBtn = document.getElementById('exitLobbyBtn');
 
-    /* Cyber Buttons */
-    .cyber-btn {
-      font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 2px;
-      background: rgba(0, 243, 255, 0.1); border: 1px solid var(--neon-blue);
-      color: var(--neon-blue); padding: 12px 24px; clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-      transition: 0.3s; cursor: pointer; position: relative; overflow: hidden;
+  // Feedback Elements
+  const feedbackModal = document.getElementById('feedbackModal');
+  const submitFeedbackBtn = document.getElementById('submitFeedbackBtn');
+  const skipFeedbackBtn = document.getElementById('skipFeedbackBtn');
+  const feedbackNameInput = document.getElementById('feedbackName');
+
+  // Game UI
+  const playersListEl = document.getElementById('playersList');
+  const currentRoomCode = document.getElementById('currentRoomCode');
+  const gameTable = document.querySelector('.game-table');
+  const gameContent = document.getElementById('gameContent');
+  const startGameBtn = document.getElementById('startGameBtn');
+  const roundTransition = document.getElementById('roundTransition');
+
+  // ==========================================================================
+  // 3. SOUND ENGINE
+  // ==========================================================================
+  const SoundEffects = {
+    meme: {
+      caught: new Audio('sounds/sabash.mp3'),
+      escaped: new Audio('sounds/ias.mp3'),
+      reveal: new Audio('sounds/drum_roll.mp3'),
+      click: new Audio('sounds/bubble.mp3'),
+      cash: new Audio('sounds/cash.mp3')
+    },
+    default: {
+      caught: new Audio('sounds/sabash.mp3'),
+      escaped: new Audio('sounds/anyay.mp3'),
+      reveal: new Audio('sounds/vine-boom.mp3'),
+      click: new Audio('sounds/bubble.mp3'),
+      cash: new Audio('sounds/ca.mp3')
     }
-    .cyber-btn:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 20px var(--neon-blue); }
+  };
+
+  function playSound(type) {
+    const hasMemePack = currentUserData && currentUserData.inventory && currentUserData.inventory.includes('meme_pack');
+    const pack = hasMemePack ? 'meme' : 'default';
+    try {
+      const audio = SoundEffects[pack][type];
+      if(audio) {
+        audio.currentTime = 0;
+        audio.play().catch(e => {});
+      }
+    } catch(e) {}
+  }
+
+  // ==========================================================================
+  // 4. AUTHENTICATION SYSTEM
+  // ==========================================================================
+  firebase.auth().onAuthStateChanged(async (user) => {
+    if (user) {
+      authModal.classList.add('hidden');
+      if (logoutBtn) logoutBtn.classList.remove('hidden');
+      await loadUserData(user.uid);
+    } else {
+      authModal.classList.remove('hidden');
+      authModal.style.display = 'flex';
+      if (logoutBtn) logoutBtn.classList.add('hidden');
+    }
+  });
+
+  async function loadUserData(uid) {
+    const userRef = db.collection('users').doc(uid);
+    const doc = await userRef.get();
+    if (!doc.exists) {
+      const initialData = {
+        username: "Agent_" + uid.substring(0, 4),
+        coins: 100, xp: 0, level: 1, inventory: [],
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await userRef.set(initialData);
+      currentUserData = initialData;
+    } else {
+      currentUserData = doc.data();
+    }
+    if (userCoinsEl) userCoinsEl.innerText = (currentUserData.coins || 0) + " CR";
+  }
+
+  if (googleLoginBtn) {
+    googleLoginBtn.onclick = () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      firebase.auth().signInWithPopup(provider).catch(e => alert(e.message));
+    };
+  }
+
+  if (guestLoginBtn) {
+    guestLoginBtn.onclick = () => {
+      firebase.auth().signInAnonymously().catch(e => alert(e.message));
+    };
+  }
+
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      if (confirm("Are you sure you want to sign out?")) {
+        firebase.auth().signOut().then(() => location.reload());
+      }
+    };
+  }
+
+  async function requireAuth() {
+    if (!firebase.auth().currentUser) {
+      alert("Authentication Required.");
+      throw new Error("Auth Required");
+    }
+    return firebase.auth().currentUser.uid;
+  }
+
+  // ==========================================================================
+  // 5. STORE SYSTEM
+  // ==========================================================================
+  const storeItems = [
+    { id: 'robot_avatar', type: 'avatars', name: 'Mecha Unit', price: 500, icon: '🤖', desc: 'Cybernetic organism.' },
+    { id: 'alien_avatar', type: 'avatars', name: 'Xenoform', price: 750, icon: '👽', desc: 'Visitor from deep space.' },
+    { id: 'hacker_avatar', type: 'avatars', name: 'Netrunner', price: 1000, icon: '🕵️', desc: 'Master of the grid.' },
+    { id: 'gold_name', type: 'colors', name: 'Midas Touch', price: 2000, icon: '👑', desc: 'Golden glow text.' },
+    { id: 'neon_name', type: 'colors', name: 'Glitch Red', price: 1500, icon: '🔴', desc: 'Aggressive red neon.' },
+    { id: 'meme_pack', type: 'sounds', name: 'Meme Lord', price: 3000, icon: '📢', desc: 'Funny sound effects.' }
+  ];
+
+  if(openStoreBtn) {
+    openStoreBtn.onclick = async () => {
+      try { await requireAuth(); renderStore('avatars'); showScreen(storeScreen); } catch(e){}
+    };
+  }
+
+  window.filterStore = (category) => {
+    document.querySelectorAll('.store-tab').forEach(t => {
+        t.classList.remove('text-white', 'border-neon-blue');
+        t.classList.add('text-gray-500', 'border-transparent');
+    });
+    event.target.classList.add('text-white', 'border-neon-blue');
+    event.target.classList.remove('text-gray-500', 'border-transparent');
+    renderStore(category);
+  };
+
+  const storeGrid = document.getElementById('storeGrid');
+  function renderStore(category) {
+    storeGrid.innerHTML = storeItems.filter(i => i.type === category).map(item => {
+      const owned = currentUserData.inventory && currentUserData.inventory.includes(item.id);
+      return `
+        <div class="bg-black/60 border ${owned ? 'border-green-500' : 'border-gray-700'} p-4 rounded flex flex-col items-center text-center hover:bg-gray-900/80 transition">
+          <div class="text-4xl mb-2">${item.icon}</div>
+          <h4 class="font-cyber text-white text-sm tracking-wider">${item.name}</h4>
+          <p class="text-gray-400 text-xs mb-3 font-mono h-8 leading-tight overflow-hidden">${item.desc}</p>
+          ${owned 
+            ? `<button class="w-full bg-green-900/30 text-green-400 border border-green-500 text-xs py-2 rounded cursor-default uppercase font-bold">OWNED</button>`
+            : `<button onclick="buyItem('${item.id}', ${item.price})" class="w-full bg-neon-blue/10 hover:bg-neon-blue/30 text-neon-blue border border-neon-blue text-xs py-2 rounded uppercase font-bold transition">BUY ${item.price} 💰</button>`
+          }
+        </div>`;
+    }).join('');
+  }
+
+  window.buyItem = async (itemId, price) => {
+    if (currentUserData.coins < price) return alert("INSUFFICIENT FUNDS.");
+    if (!confirm(`Purchase this item for ${price} coins?`)) return;
+
+    const uid = firebase.auth().currentUser.uid;
+    const userRef = db.collection('users').doc(uid);
+
+    try {
+      await db.runTransaction(async (t) => {
+        const doc = await t.get(userRef);
+        const data = doc.data();
+        if (data.coins < price) throw "Not enough coins";
+        t.update(userRef, { coins: data.coins - price, inventory: firebase.firestore.FieldValue.arrayUnion(itemId) });
+      });
+      await loadUserData(uid);
+      renderStore(storeItems.find(i => i.id === itemId).type);
+      playSound('cash');
+      alert("SUCCESSFUL.");
+    } catch (e) { alert("FAILED: " + e); }
+  };
+
+  // ==========================================================================
+  // 6. NAVIGATION & FEEDBACK
+  // ==========================================================================
+  function showScreen(show) {
+    [mainMenu, createScreen, joinScreen, gameScreen, storeScreen].forEach(s => {
+      if(s) { s.classList.remove('active-screen'); s.style.display = 'none'; }
+    });
+    if (show) { show.style.display = 'flex'; show.classList.add('active-screen'); }
+  }
+
+  document.querySelectorAll('.create-btn').forEach(b => b.onclick = () => showScreen(createScreen));
+  document.querySelectorAll('.join-btn').forEach(b => b.onclick = () => showScreen(joinScreen));
+  document.querySelectorAll('.back-btn').forEach(btn => btn.onclick = () => showScreen(mainMenu));
+
+  const openHistoryBtn = document.getElementById('openHistoryBtn');
+  const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+  const historyModal = document.getElementById('historyModal');
+  if(openHistoryBtn) openHistoryBtn.onclick = () => { historyModal.classList.remove('hidden'); historyModal.style.display = 'flex'; };
+  if(closeHistoryBtn) closeHistoryBtn.onclick = () => { historyModal.classList.add('hidden'); historyModal.style.display = 'none'; };
+
+  // Exit & Feedback Logic (Restored)
+  if (exitLobbyBtn) {
+      exitLobbyBtn.onclick = () => {
+        if(unsubscribe) unsubscribe();
+        feedbackNameInput.value = playerName || "";
+        feedbackModal.classList.remove('hidden');
+        feedbackModal.style.display = 'flex';
+      };
+  }
+
+  if (submitFeedbackBtn) {
+      submitFeedbackBtn.onclick = async () => {
+          const name = feedbackNameInput.value;
+          const text = document.getElementById('feedbackText').value;
+          const getRating = (n) => { const el = document.querySelector(`input[name="${n}"]:checked`); return el ? el.value : 0; };
+          const ratings = { func: getRating('func'), gui: getRating('gui'), over: getRating('over') };
+          
+          try {
+              await db.collection('rmcs_feedback').add({ name, text, ratings, time: firebase.firestore.FieldValue.serverTimestamp() });
+              alert("Data Transmitted.");
+              location.reload();
+          } catch(e) { alert("Error"); location.reload(); }
+      };
+  }
+
+  if (skipFeedbackBtn) {
+      skipFeedbackBtn.onclick = () => location.reload();
+  }
+
+  // ==========================================================================
+  // 7. GAME ROOM LOGIC
+  // ==========================================================================
+  document.getElementById('createRoomFinal').onclick = async () => {
+    playerName = document.getElementById('createPlayerName').value.trim();
+    let code = document.getElementById('createRoomCode').value.trim().toUpperCase() || Math.random().toString(36).substring(2, 6).toUpperCase();
+    if(!playerName) return alert("Name required");
     
-    .cyber-btn.danger { border-color: var(--neon-pink); color: var(--neon-pink); background: rgba(217, 70, 239, 0.1); }
-    .cyber-btn.danger:hover { background: var(--neon-pink); color: white; box-shadow: 0 0 20px var(--neon-pink); }
+    try {
+        const uid = await requireAuth();
+        const ref = db.collection('rmcs_rooms').doc(code);
+        if ((await ref.get()).exists) return alert("Code taken.");
 
-    /* Inputs */
-    .cyber-input {
-      background: rgba(0,0,0,0.5); border: 1px solid #334155; color: white;
-      font-family: 'Orbitron', sans-serif; padding: 12px; width: 100%;
-      outline: none; transition: 0.3s; text-align: center; letter-spacing: 2px;
+        const playerData = {
+            name: playerName, id: uid, 
+            inventory: currentUserData.inventory,
+            isVip: currentUserData.inventory.includes('gold_name'),
+            nameColor: currentUserData.inventory.includes('gold_name') ? 'gold' : 'white'
+        };
+
+        await ref.set({ 
+            host: uid, players: [playerData], phase: 'lobby', scores: {[uid]:0}, 
+            created: firebase.firestore.FieldValue.serverTimestamp() 
+        });
+        roomId = code; listenToRoom(roomId); showScreen(gameScreen);
+    } catch(e) {}
+  };
+
+  document.getElementById('joinRoomFinal').onclick = async () => {
+    playerName = document.getElementById('joinPlayerName').value.trim();
+    let code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
+    if(!playerName || !code) return alert("Info required");
+
+    try {
+        const uid = await requireAuth();
+        const ref = db.collection('rmcs_rooms').doc(code);
+        const doc = await ref.get();
+        if (!doc.exists) return alert("Room not found");
+
+        const playerData = {
+            name: playerName, id: uid, 
+            inventory: currentUserData.inventory,
+            isVip: currentUserData.inventory.includes('gold_name'),
+            nameColor: currentUserData.inventory.includes('gold_name') ? 'gold' : 'white'
+        };
+
+        if(!doc.data().players.some(p=>p.id===uid)) {
+            if(doc.data().players.length >= 4) return alert("Room Full.");
+            await ref.update({ players: firebase.firestore.FieldValue.arrayUnion(playerData), [`scores.${uid}`]: 0 });
+        }
+        roomId = code; listenToRoom(roomId); showScreen(gameScreen);
+    } catch(e) {}
+  };
+
+  // ==========================================================================
+  // 8. GAME LOOP
+  // ==========================================================================
+  function listenToRoom(roomCode) {
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    const roomRef = db.collection('rmcs_rooms').doc(roomCode);
+
+    unsubscribe = roomRef.onSnapshot(doc => {
+      const data = doc.data();
+      const selfId = firebase.auth().currentUser.uid;
+
+      if (!data) { alert("Room deleted."); showScreen(mainMenu); roomId = ''; return; }
+      if (!data.players.some(p => p.id === selfId)) { alert("Removed from room."); showScreen(mainMenu); return; }
+
+      if(currentRoomCode) currentRoomCode.innerText = roomCode;
+      renderPlayersList(data.players);
+      renderScoreboard(data.scores || {}, data.players);
+      
+      const historyContent = document.getElementById('historyContent');
+      if(historyContent && data.history) {
+          historyContent.innerHTML = data.history.map((h,i) => `<div class="border-b border-gray-700 py-2 text-xs text-gray-300">Round ${i+1}: ${h.result}</div>`).join('');
+      }
+
+      const isHost = selfId === data.host;
+      const cancelBtn = document.getElementById('cancelRoomBtn');
+      if(cancelBtn) { 
+          cancelBtn.style.display = isHost ? 'block' : 'none'; 
+          cancelBtn.onclick = () => { if(confirm("Terminate Session?")) roomRef.delete(); }; 
+      }
+
+      if (data.phase !== lastPhase) {
+          if(data.phase === 'reveal') {
+             playSound('reveal');
+             if(roundTransition) { 
+                 roundTransition.classList.remove('hidden'); 
+                 roundTransition.style.display = 'flex'; 
+                 setTimeout(() => roundTransition.style.display = 'none', 2500); 
+             }
+          }
+      }
+      lastPhase = data.phase;
+
+      const gameContent = document.getElementById('gameContent');
+      const table = document.querySelector('.game-table .table');
+
+      if (data.phase === "lobby") {
+        gameContent.innerHTML = '';
+        table.style.display = 'block';
+        renderAvatarsTable(data.players, selfId);
+
+        if(startGameBtn) {
+            startGameBtn.style.display = 'flex';
+            startGameBtn.disabled = !(isHost && data.players.length === 4);
+            startGameBtn.innerText = (data.players.length === 4) ? "INITIATE SEQUENCE" : `WAITING (${data.players.length}/4)`;
+            startGameBtn.classList.toggle('opacity-50', data.players.length !== 4);
+            
+            startGameBtn.onclick = () => {
+                if(isHost && data.players.length === 4) {
+                    const roles = ['Raja', 'Mantri', 'Chor', 'Sipahi'].sort(() => Math.random() - 0.5);
+                    const pr = data.players.map((p,i) => ({ id: p.id, name: p.name, role: roles[i] }));
+                    roomRef.update({ phase: 'reveal', playerRoles: pr, revealed: [], guess: null, scoreUpdated: false });
+                }
+            };
+        }
+      } 
+      else {
+        if(startGameBtn) startGameBtn.style.display = 'none';
+        table.style.display = 'block';
+        
+        if (data.phase === 'reveal') showRoleRevealScreen(data, selfId, roomRef);
+        else if (data.phase === 'guess') showSipahiGuessUI(data, selfId, roomRef);
+        else if (data.phase === 'roundResult') showRoundResult(data, selfId, roomRef, isHost);
+      }
+    });
+  }
+
+  // --- GAME RENDERERS ---
+  function showRoleRevealScreen(data, selfId, roomRef) {
+    const p = data.playerRoles.find(p => p.id === selfId);
+    const isRS = (p.role === 'Raja' || p.role === 'Sipahi'); 
+    const revealed = data.revealed || [];
+    const amIRevealed = revealed.some(r => r.id === selfId);
+
+    if (data.host === selfId) {
+        const rRevealed = revealed.some(r => r.role === 'Raja');
+        const sRevealed = revealed.some(r => r.role === 'Sipahi');
+        if (rRevealed && sRevealed) { roomRef.update({ phase: 'guess', revealed: [] }); return; }
     }
-    .cyber-input:focus { border-color: var(--neon-blue); box-shadow: 0 0 15px rgba(0, 243, 255, 0.2); }
 
-    /* Game Table */
-    .game-table {
-      position: relative; width: 320px; height: 320px; margin: 2rem auto;
-      border-radius: 50%; border: 2px dashed rgba(255,255,255,0.1);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .game-content {
-      position: absolute; width: 200px; height: 200px;
-      display: flex; align-items: center; justify-content: center;
-      text-align: center; z-index: 10;
-    }
-
-    /* Avatars */
-    .avatar {
-      position: absolute; width: 70px; height: 70px;
-      background: #0f172a; border: 2px solid var(--neon-blue);
-      border-radius: 50%; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; 
-      box-shadow: 0 0 15px rgba(0,0,0,0.5); transition: 0.3s;
-    }
-    .avatar-name {
-      position: absolute; bottom: -20px; width: 120px; text-align: center;
-      font-size: 0.75rem; font-weight: bold; color: var(--neon-blue);
-      text-shadow: 0 0 5px black;
-    }
-
-    /* Modals */
-    .modal-overlay { background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); z-index: 100; }
-    .active-screen { animation: fadeIn 0.4s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  </style>
-</head>
-<body>
-
-  <div class="cyber-grid"></div>
-
-  <!-- NAVIGATION -->
-  <nav class="flex justify-between items-center p-4 border-b border-white/10 bg-black/40 backdrop-blur-md z-50">
-    <div class="flex items-center gap-3">
-      <a href="index.html" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-arrow-left"></i> HUB</a>
-      <span class="h-4 w-[1px] bg-gray-600"></span>
-      <span class="font-cyber text-neon-blue tracking-widest font-bold">RMCS PROTOCOL</span>
-    </div>
-    <div class="flex items-center gap-4">
-        <button id="logoutBtn" class="hidden text-red-400 text-xs border border-red-900 px-2 py-1 rounded hover:bg-red-900/20">SIGNOUT</button>
-        <button id="openStoreBtn" class="text-yellow-400 hover:text-white transition text-sm">
-            <i class="fa-solid fa-shop mr-1"></i> STORE
-        </button>
-        <div id="userCoins" class="text-xs font-mono border border-yellow-500/30 px-2 py-1 rounded text-yellow-400">0 CR</div>
-    </div>
-  </nav>
-
-  <!-- MAIN CONTAINER -->
-  <main class="flex-1 flex items-center justify-center p-4 relative">
+    gameContent.innerHTML = `
+      <div class="flex flex-col items-center animate-fade-in">
+          <div class="text-5xl mb-2">${getRoleIcon(p.role)}</div>
+          <h3 class="font-cyber text-2xl text-neon-blue mb-4">${p.role}</h3>
+          ${(isRS && !amIRevealed) 
+            ? `<button id="revealRoleBtn" class="cyber-btn danger text-xs">EXPOSE IDENTITY</button>` 
+            : (!isRS ? `<div class="text-gray-500 text-xs border border-gray-700 px-2 py-1">STAY COVERT</div>` : `<div class="text-neon-green text-xs font-bold animate-pulse">IDENTITY EXPOSED</div>`)
+          }
+      </div>`;
     
-    <!-- 1. MAIN MENU SCREEN -->
-    <div id="mainMenu" class="active-screen w-full max-w-md text-center space-y-6">
-      <h1 class="text-5xl font-cyber font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 mb-8 drop-shadow-[0_0_15px_rgba(0,243,255,0.3)]">
-        RAJA MANTRI
-      </h1>
-      
-      <button class="create-btn cyber-btn w-full text-lg font-bold"><i class="fa-solid fa-plus mr-2"></i> CREATE LOBBY</button>
-      <button class="join-btn cyber-btn w-full text-lg font-bold border-gray-500 text-gray-300"><i class="fa-solid fa-right-to-bracket mr-2"></i> JOIN LOBBY</button>
-      <button id="openHistoryBtn" class="text-sm text-gray-500 hover:text-neon-blue tracking-widest mt-8 underline decoration-dotted">VIEW MISSION LOGS</button>
-    </div>
+    const btn = document.getElementById('revealRoleBtn');
+    if(btn) btn.onclick = () => {
+        roomRef.update({ revealed: firebase.firestore.FieldValue.arrayUnion({ id: selfId, role: p.role, name: p.name }) });
+    };
+  }
 
-    <!-- 2. CREATE SCREEN -->
-    <div id="createScreen" class="hidden w-full max-w-sm bg-black/60 border border-gray-700 p-8 rounded-xl backdrop-blur-md">
-      <h2 class="font-cyber text-2xl text-white mb-6 text-center">INITIATE LOBBY</h2>
-      <input type="text" id="createPlayerName" placeholder="CODENAME" class="cyber-input mb-4">
-      <input type="text" id="createRoomCode" placeholder="ROOM CODE (OPTIONAL)" class="cyber-input mb-6 uppercase" maxlength="6">
-      <button id="createRoomFinal" class="cyber-btn w-full mb-3">INITIALIZE</button>
-      <button class="back-btn text-gray-500 text-xs w-full hover:text-white">ABORT</button>
-    </div>
-
-    <!-- 3. JOIN SCREEN -->
-    <div id="joinScreen" class="hidden w-full max-w-sm bg-black/60 border border-gray-700 p-8 rounded-xl backdrop-blur-md">
-      <h2 class="font-cyber text-2xl text-white mb-6 text-center">JOIN FREQUENCY</h2>
-      <input type="text" id="joinPlayerName" placeholder="CODENAME" class="cyber-input mb-4">
-      <input type="text" id="joinRoomCode" placeholder="ENTER ROOM CODE" class="cyber-input mb-6 uppercase" maxlength="6">
-      <button id="joinRoomFinal" class="cyber-btn w-full mb-3">CONNECT</button>
-      <button class="back-btn text-gray-500 text-xs w-full hover:text-white">ABORT</button>
-    </div>
-
-    <!-- 4. GAME SCREEN -->
-    <div id="gameScreen" class="hidden w-full max-w-5xl flex-col md:flex-row gap-6 items-start h-[80vh]">
-      <div class="flex-1 w-full h-full bg-black/40 border border-white/5 rounded-2xl relative flex flex-col items-center justify-center overflow-hidden">
-        <div class="absolute top-4 left-4 z-20"><div id="currentRoomCode" class="text-neon-green font-mono text-xl font-bold"></div></div>
-        <div class="absolute top-4 right-4 z-20"><button id="cancelRoomBtn" class="text-red-500 hover:text-red-400 text-xs border border-red-500/30 px-3 py-1 rounded bg-red-900/10">END SESSION</button></div>
-
-        <div class="game-table">
-          <div class="table absolute inset-0 rounded-full border border-dashed border-white/10 animate-[spin_60s_linear_infinite]"></div>
-          <div id="gameContent" class="game-content"></div>
+  function showSipahiGuessUI(data, selfId, roomRef) {
+    const p = data.playerRoles.find(p => p.id === selfId);
+    if (p.role !== 'Sipahi') {
+        gameContent.innerHTML = `<div class="text-center animate-fade-in"><div class="text-5xl mb-2 animate-bounce">🛡️</div><h3 class="text-neon-blue font-bold">SIPAHI IS ANALYZING...</h3></div>`;
+        return;
+    }
+    let targets = data.playerRoles.filter(pr => pr.role !== 'Raja' && pr.role !== 'Sipahi');
+    gameContent.innerHTML = `
+      <div class="flex flex-col items-center w-64 animate-fade-in">
+        <h3 class="font-cyber text-white mb-4 text-sm bg-black/80 px-2">IDENTIFY THE CHOR</h3>
+        <div class="grid grid-cols-1 gap-2 w-full">
+            ${targets.map(t => `<button class="guess-btn cyber-btn w-full py-2 text-sm" data-id="${t.id}">${t.name}</button>`).join('')}
         </div>
+      </div>`;
+    document.querySelectorAll('.guess-btn').forEach(btn => {
+        btn.onclick = () => {
+            const t = targets.find(tg => tg.id === btn.dataset.id);
+            roomRef.update({ phase: 'roundResult', guess: { sipahiId: p.id, guessedId: t.id, correct: t.role === 'Chor', guessedName: t.name }, scoreUpdated: false });
+        };
+    });
+  }
 
-        <div id="roundTransition" class="hidden absolute inset-0 bg-black z-50 flex-col items-center justify-center">
-            <h2 id="roundTitle" class="text-6xl font-cyber text-neon-blue animate-bounce">ROUND 1</h2>
+  function showRoundResult(data, selfId, roomRef, isHost) {
+    const res = data.guess;
+    const isCorrect = res.correct;
+    
+    if (!data.scoreUpdated) { if (isCorrect) playSound('caught'); else playSound('escaped'); }
+
+    if (isHost && !data.scoreUpdated) {
+       const roundPoints = calculateRoundPoints(data.playerRoles, isCorrect);
+       const newScores = { ...data.scores };
+       Object.keys(roundPoints).forEach(uid => { newScores[uid] = (newScores[uid] || 0) + roundPoints[uid]; });
+       const historyEntry = { result: isCorrect?'Caught':'Escaped' };
+       
+       roomRef.update({ scores: newScores, history: firebase.firestore.FieldValue.arrayUnion(historyEntry), scoreUpdated: true });
+       data.playerRoles.forEach(p => { db.collection('users').doc(p.id).update({ xp: firebase.firestore.FieldValue.increment(50), coins: firebase.firestore.FieldValue.increment(10) }); });
+    }
+
+    const resultText = isCorrect ? 'CHOR CAUGHT' : 'CHOR ESCAPED';
+    const resultColor = isCorrect ? 'text-neon-green' : 'text-red-500';
+    const resultEmoji = isCorrect ? '🎯' : '🤡';
+    const roleMap = {}; 
+    data.playerRoles.forEach(p => roleMap[p.role] = p.name);
+
+    const hostBtnHtml = isHost 
+      ? `<button id="rebootBtn" class="cyber-btn w-full mt-2 text-xs py-2 shadow-[0_0_15px_rgba(0,243,255,0.4)]">REBOOT SYSTEM</button>` 
+      : `<div class="mt-2 text-[10px] text-gray-500 animate-pulse">WAITING FOR HOST...</div>`;
+
+    gameContent.innerHTML = `
+      <div class="flex flex-col items-center w-64 animate-fade-in bg-black/90 p-4 border border-neon-blue/50 rounded-lg">
+        <div class="text-4xl mb-1">${resultEmoji}</div>
+        <h2 class="font-cyber text-lg ${resultColor} mb-4">${resultText}</h2>
+        <div class="w-full text-xs space-y-1 font-mono text-left mb-4">
+           <div class="flex justify-between"><span class="text-yellow-300">RAJA</span> <span>${roleMap['Raja']}</span></div>
+           <div class="flex justify-between"><span class="text-fuchsia-300">MANTRI</span> <span>${roleMap['Mantri']}</span></div>
+           <div class="flex justify-between"><span class="text-cyan-300">SIPAHI</span> <span>${roleMap['Sipahi']}</span></div>
+           <div class="flex justify-between"><span class="text-rose-400">CHOR</span> <span>${roleMap['Chor']}</span></div>
         </div>
-        <button id="startGameBtn" class="cyber-btn absolute bottom-10 z-20 shadow-lg">INITIATE SEQUENCE</button>
-      </div>
+        ${hostBtnHtml}
+      </div>`;
 
-      <div class="w-full md:w-80 bg-black/60 border border-white/10 h-full rounded-xl p-4 flex flex-col backdrop-blur-md">
-        <div class="flex border-b border-gray-700 mb-4">
-            <div class="flex-1 text-center pb-2 border-b-2 border-neon-blue text-white text-xs font-bold tracking-widest">AGENTS</div>
-            <div class="flex-1 text-center pb-2 text-gray-500 text-xs font-bold tracking-widest">SCORE</div>
+    if (isHost) {
+        setTimeout(() => {
+            const btn = document.getElementById('rebootBtn');
+            if (btn) {
+                btn.onclick = () => {
+                    btn.innerText = "INITIALIZING...";
+                    const roles = ['Raja', 'Mantri', 'Chor', 'Sipahi'].sort(() => Math.random() - 0.5);
+                    const pr = data.playerRoles.map((p,i) => ({ id: p.id, name: p.name, role: roles[i] }));
+                    roomRef.update({ phase: 'reveal', playerRoles: pr, revealed: [], guess: null, scoreUpdated: false });
+                };
+            }
+        }, 100);
+    }
+  }
+
+  function getRoleIcon(role) {
+      if(role === 'Raja') return '👑';
+      if(role === 'Mantri') return '🧠';
+      if(role === 'Sipahi') return '🛡️';
+      if(role === 'Chor') return '🔪';
+      return '❓';
+  }
+
+  function calculateRoundPoints(roles, isCorrect) {
+      const pts = {};
+      roles.forEach(p => {
+          if (p.role === 'Raja') pts[p.id] = 1000;
+          else if (p.role === 'Mantri') pts[p.id] = 800;
+          else if (p.role === 'Sipahi') pts[p.id] = isCorrect ? 500 : 0;
+          else if (p.role === 'Chor') pts[p.id] = isCorrect ? 0 : 500;
+      });
+      return pts;
+  }
+
+  function renderPlayersList(players) {
+      if(!playersListEl) return;
+      const uid = firebase.auth().currentUser.uid;
+      playersListEl.innerHTML = players.map(p => `
+        <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-800 ${p.isVip ? 'bg-yellow-900/10' : ''}">
+            <span class="${p.id===uid?'text-neon-green':'text-gray-500'} text-xs">●</span>
+            <span class="${p.nameColor==='gold'?'text-yellow-400 font-bold drop-shadow-sm':'text-gray-300'} text-sm">${p.name}</span>
+            ${p.isVip ? '<i class="fa-solid fa-crown text-yellow-500 text-[10px] ml-auto"></i>' : ''}
+        </div>`).join('');
+  }
+
+  function renderScoreboard(scores, players) {
+      const list = document.getElementById('scoreList');
+      if(!list) return;
+      const sorted = players.map(p => ({name: p.name, score: scores[p.id]||0})).sort((a,b)=>b.score-a.score);
+      list.innerHTML = sorted.map(x => `
+        <div class="flex justify-between px-2 py-1 text-xs text-gray-400 border-b border-gray-800 hover:bg-white/5">
+            <span>${x.name}</span>
+            <span class="text-neon-pink font-mono">${x.score}</span>
         </div>
-        <div id="playersList" class="space-y-2 mb-6"></div>
-        <div class="flex-1 overflow-y-auto"><h3 class="text-[10px] text-gray-500 uppercase mb-2 font-bold">Live Data</h3><div id="scoreList" class="space-y-1"></div></div>
-        <button id="exitLobbyBtn" class="mt-auto w-full py-3 text-xs text-red-400 hover:text-white border border-red-900/50 hover:bg-red-900/20 rounded transition">DISCONNECT</button>
-      </div>
-    </div>
+      `).join('');
+  }
 
-    <!-- 5. STORE SCREEN -->
-    <div id="storeScreen" class="hidden w-full max-w-4xl h-[80vh] bg-[#0a0a15] border border-neon-blue/30 rounded-2xl p-6 flex-col relative shadow-[0_0_50px_rgba(0,0,0,0.8)]">
-        <button class="back-btn absolute top-6 right-6 text-gray-400 hover:text-white text-2xl">&times;</button>
-        <h2 class="font-cyber text-3xl text-white mb-6 flex items-center gap-3"><i class="fa-solid fa-cart-shopping text-neon-blue"></i> BLACK MARKET</h2>
-        <div class="flex gap-4 mb-6 border-b border-gray-800">
-            <button onclick="filterStore('avatars')" class="store-tab pb-2 px-4 text-white border-b-2 border-neon-blue font-bold text-sm hover:text-neon-blue transition">AVATARS</button>
-            <button onclick="filterStore('colors')" class="store-tab pb-2 px-4 text-gray-500 border-b-2 border-transparent font-bold text-sm hover:text-neon-blue transition">COLORS</button>
-            <button onclick="filterStore('sounds')" class="store-tab pb-2 px-4 text-gray-500 border-b-2 border-transparent font-bold text-sm hover:text-neon-blue transition">AUDIO</button>
-        </div>
-        <div id="storeGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 overflow-y-auto p-2"></div>
-    </div>
-
-  </main>
-
-  <!-- AUTH MODAL (ADDED) -->
-  <div id="authModal" class="modal-overlay fixed inset-0 hidden flex items-center justify-center p-4">
-    <div class="bg-[#0a0a15] border-2 border-neon-blue p-10 rounded-xl max-w-sm w-full text-center shadow-[0_0_60px_rgba(0,243,255,0.15)]">
-      <h2 class="font-cyber text-3xl text-white mb-8 tracking-widest">IDENTIFICATION</h2>
-      
-      <button id="googleLoginBtn" class="w-full bg-white text-black font-bold font-cyber py-4 rounded mb-4 flex items-center justify-center gap-3 hover:bg-gray-200 transition shadow-lg">
-        <i class="fa-brands fa-google text-xl"></i> ACCESS VIA GOOGLE
-      </button>
-      
-      <div class="my-6 border-t border-gray-800"></div>
-
-      <button id="guestLoginBtn" class="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-[0.2em] transition">
-        [ Continue as Guest ]
-      </button>
-    </div>
-  </div>
-
-  <!-- HISTORY MODAL -->
-  <div id="historyModal" class="fixed inset-0 bg-black/90 z-[60] hidden items-center justify-center p-4">
-    <div class="bg-[#0f172a] border border-gray-600 w-full max-w-2xl rounded-lg p-6 max-h-[80vh] flex flex-col">
-        <div class="flex justify-between items-center mb-4"><h2 class="font-cyber text-xl text-white">MISSION LOGS</h2><button id="closeHistoryBtn" class="text-gray-400 hover:text-white">&times;</button></div>
-        <div id="historyContent" class="overflow-y-auto flex-1"></div>
-    </div>
-  </div>
-
-  <!-- FEEDBACK MODAL -->
-  <div id="feedbackModal" class="fixed inset-0 bg-black/95 z-[70] hidden items-center justify-center p-4 backdrop-blur-sm">
-    <div class="bg-gray-900 border border-neon-blue w-full max-w-md rounded-xl p-8 text-center relative">
-        <h2 class="font-cyber text-2xl text-neon-blue mb-2">DEBRIEFING</h2>
-        <input type="text" id="feedbackName" class="cyber-input mb-6 text-left" readonly>
-        <textarea id="feedbackText" placeholder="Additional Intel (Optional)" class="w-full bg-black border border-gray-700 text-white p-3 rounded mb-4 text-sm h-20"></textarea>
-        <button id="submitFeedbackBtn" class="cyber-btn w-full mb-2">TRANSMIT DATA</button>
-        <button id="skipFeedbackBtn" class="text-gray-500 text-xs hover:text-white">SKIP DEBRIEF</button>
-    </div>
-  </div>
-
-  <script src="js/rmcs.js"></script>
-
-</body>
-</html>
+  function renderAvatarsTable(players, selfId) {
+    const table = document.querySelector('.game-table');
+    if(!table) return;
+    table.querySelectorAll('.avatar').forEach(e => e.remove());
+    const N = players.length;
+    if(N===0) return;
+    const radius = 130, cx = 160, cy = 160;
+    const selfIdx = players.findIndex(p=>p.id===selfId);
+    
+    players.forEach((p, i) => {
+        const logicalIdx = (i - selfIdx + N) % N; 
+        const angle = Math.PI/2 + (2 * Math.PI * logicalIdx) / N; 
+        const x = cx + radius * Math.cos(angle) - 35;
+        const y = cy + radius * Math.sin(angle) - 35;
+        const el = document.createElement('div');
+        el.className = 'avatar';
+        el.style.left = x + 'px'; el.style.top = y + 'px';
+        let icon = '👤';
+        if(p.inventory && p.inventory.includes('robot_avatar')) icon = '🤖';
+        if(p.inventory && p.inventory.includes('alien_avatar')) icon = '👽';
+        if(p.inventory && p.inventory.includes('hacker_avatar')) icon = '🕵️';
+        el.innerHTML = `<span class="text-3xl">${icon}</span><div class="avatar-name">${p.name}</div>`;
+        if(p.id === selfId) { el.style.borderColor = 'var(--neon-green)'; el.style.boxShadow = '0 0 15px var(--neon-green)'; }
+        table.appendChild(el);
+    });
+  }
+});
