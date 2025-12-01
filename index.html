@@ -250,7 +250,8 @@
     </button>
 
     <div class="flex items-center gap-4">
-      <div id="userInfo" class="hidden flex-col items-end border-r border-gray-700 pr-4">
+      <!-- Added onclick="logoutUser()" and cursor-pointer -->
+      <div id="userInfo" onclick="logoutUser()" class="hidden flex-col items-end border-r border-gray-700 pr-4 cursor-pointer hover:opacity-80 transition" title="Click to Logout">
         <span id="userName" class="text-neon-blue font-bold text-sm tracking-wider">AGENT</span>
         <span id="userCoins" class="text-yellow-400 text-xs font-mono font-bold">0 CR</span>
       </div>
